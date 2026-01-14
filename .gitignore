@@ -1,0 +1,21 @@
+# deps
+node_modules/
+ui/node_modules/
+electron/node_modules/
+
+# build outputs
+ui/.next/
+ui/out/
+electron/dist/
+dist/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

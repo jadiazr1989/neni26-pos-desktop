@@ -1,0 +1,26 @@
+{
+  "name": "neni26-pos-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "author": "José Díaz Romero <jadiazr89@gmail.com>",
+  "scripts": {
+    "dev:ui": "npm --prefix ui run dev -- -p 3000",
+    "dev:electron": "wait-on http://localhost:3000 && npm --prefix electron run dev",
+    "dev": "concurrently -k \"npm run dev:ui\" \"npm run dev:electron\"",
+
+    "kill:3000": "lsof -ti :3000 | xargs kill -9 || true",
+    "kill:31337": "lsof -ti :31337 | xargs kill -9 || true",
+    "kill:dev": "npm run kill:3000 && npm run kill:31337",
+
+    "dev:clean": "npm run kill:dev && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "electron": "^39.2.7",
+    "electronmon": "^2.0.4",
+    "wait-on": "^8.0.0"
+  },
+  "dependencies": {
+    "zustand": "^5.0.9"
+  }
+}

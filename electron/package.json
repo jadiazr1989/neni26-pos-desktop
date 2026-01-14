@@ -1,0 +1,75 @@
+{
+  "name": "electron",
+  "version": "1.0.0",
+  "description": "Neni26 POS Desktop",
+  "author": "José Díaz Romero <jadiazr89@gmail.com>",
+  "main": "main.cjs",
+  "scripts": {
+    "dev": "electronmon main.cjs",
+    "build:ui": "npm --prefix ../ui run build",
+    "dist": "rm -rf dist && npm run build:ui && electron-builder"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.4.0",
+    "electronmon": "^2.0.4",
+    "wait-on": "^8.0.0"
+  },
+  "dependencies": {
+    "electron-log": "^5.4.3",
+    "electron-store": "^11.0.2"
+  },
+  "build": {
+    "appId": "com.neni26.pos",
+    "productName": "Neni26 POS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../ui/.next/standalone",
+        "to": "ui"
+      },
+      {
+        "from": "../ui/.next/static",
+        "to": "ui/.next/static"
+      },
+      {
+        "from": "../ui/public",
+        "to": "ui/public"
+      },
+      {
+        "from": "../ui/node_modules",
+        "to": "ui/node_modules"
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
+  }
+}
