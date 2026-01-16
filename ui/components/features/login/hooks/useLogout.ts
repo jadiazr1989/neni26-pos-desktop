@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api/fetch";
 
 import { useSessionStore } from "@/stores/session.store";
 import { useTerminalStore } from "@/stores/terminal.store";

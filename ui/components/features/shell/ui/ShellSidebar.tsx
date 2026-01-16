@@ -4,32 +4,33 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "../nav";
+import { navHref } from "../nav";
 
 export function ShellSidebar(props: { items: NavItem[] }) {
   const pathname = usePathname();
 
+  const activeKey = pickActiveKey(pathname, props.items);
+
   return (
     <aside className="h-[calc(100vh-56px)] w-72 shrink-0 border-r border-border bg-card flex flex-col">
-      {/* Header fijo del sidebar */}
       <div className="px-4 py-3 border-b border-border">
         <div className="text-xs text-muted-foreground">Menú</div>
       </div>
 
-      {/* Nav scrolleable si crece */}
       <nav className="px-3 py-3 grid gap-1 overflow-y-auto">
         {props.items.map((it) => {
-          const active = isActive(pathname, it.href);
+          const href = navHref(it);
+          const active = it.key === activeKey;
           const Icon = it.icon;
 
           return (
             <Link
               key={it.key}
-              href={it.href}
+              href={href}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                 active
-                  ? "bg-accent text-foreground relative " +
-                    "before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:rounded-r before:bg-primary"
+                  ? "bg-accent text-foreground"
                   : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
               )}
             >
@@ -43,11 +44,25 @@ export function ShellSidebar(props: { items: NavItem[] }) {
   );
 }
 
-function isActive(pathname: string, href: string): boolean {
-  // ✅ evita doble activo por prefijos tipo "/admin" vs "/admin/setup"
-  if (href === "/") return pathname === "/";
-  if (href === "/admin") return pathname === "/admin";
-  if (href === "/pos") return pathname === "/pos";
+/**
+ * ✅ Activo único: el href con match más largo.
+ * Ej: pathname "/admin/categories/123" -> marca "/admin/categories" y NO "/admin"
+ */
+function pickActiveKey(pathname: string, items: NavItem[]): string | null {
+  let best: { key: string; len: number } | null = null;
 
-  return pathname === href || pathname.startsWith(href + "/");
+  for (const it of items) {
+    const href = navHref(it);
+
+    const isExact = pathname === href;
+    const isNested = pathname.startsWith(href + "/"); // ✅ evita "/admin" marcando todo
+    const match = isExact || isNested;
+
+    if (!match) continue;
+
+    const len = href.length;
+    if (!best || len > best.len) best = { key: it.key, len };
+  }
+
+  return best?.key ?? null;
 }

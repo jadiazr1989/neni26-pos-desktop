@@ -1,21 +1,21 @@
 "use client";
 
-import { JSX, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { JSX, useMemo, useState } from "react";
 
-import { apiFetchEnvelope } from "@/lib/api";
-import type { HandshakeRequest, HandshakeResponse } from "@/lib/api.types";
+import { apiFetchEnvelope } from "@/lib/api/fetch";
+import type { HandshakeRequest, HandshakeResponse } from "@/lib/cash.types";
 
 import { useSessionStore } from "@/stores/session.store";
 import { useTerminalStore } from "@/stores/terminal.store";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { useTerminals, type TerminalDTO } from "../hooks/useTerminals";
-import { TerminalList } from "../ui/TerminalList";
 import { CreateTerminalDialog } from "../ui/CreateTerminalDialog";
+import { TerminalList } from "../ui/TerminalList";
 
 export function SetupScreen(): JSX.Element {
   const router = useRouter();

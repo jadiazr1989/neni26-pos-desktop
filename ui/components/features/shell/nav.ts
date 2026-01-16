@@ -1,49 +1,57 @@
+// ui/components/features/shell/nav.ts
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutGrid,
   ShoppingCart,
-  Undo2,
   Wallet,
-  ScanSearch,
   Package,
   Tags,
   ClipboardList,
   BarChart3,
   Users,
   Settings,
-  Wrench,
+  Monitor,
+  FolderTree,
+  LayoutGrid,
 } from "lucide-react";
 
+import { ROUTES, type RouteId, type UserRole } from "@/core/routing/routeRegistry";
+
 export type Area = "pos" | "admin";
-export type Role = "ADMIN" | "MANAGER" | "CASHIER";
+export type Role = UserRole;
 
 export type NavItem = {
   key: string;
   label: string;
-  href: string;
+  routeId: RouteId;
   icon: LucideIcon;
-  roles?: Role[]; // si no se pone, visible para todos en esa área
 };
 
+export function navHref(item: NavItem): string {
+  return ROUTES[item.routeId].path;
+}
+
 export const POS_NAV: NavItem[] = [
-  { key: "sale", label: "Venta", href: "/pos", icon: ShoppingCart },
-  { key: "cash", label: "Caja", href: "/cash/open", icon: Wallet, roles: ["ADMIN", "MANAGER", "CASHIER"] },
-  { key: "returns", label: "Devoluciones", href: "/returns/new", icon: Undo2, roles: ["ADMIN", "MANAGER"] },
-  { key: "price", label: "Precio", href: "/catalog", icon: ScanSearch },
+  { key: "pos", label: "Venta", routeId: "dashboard", icon: ShoppingCart },
+  { key: "cash", label: "Caja", routeId: "cashOpen", icon: Wallet },
 ];
 
 export const ADMIN_NAV: NavItem[] = [
-  { key: "setup", label: "Dashboard", href: "/admin/setup", icon: Wrench, roles: ["ADMIN", "MANAGER"] },
- // { key: "home", label: "Dashboard", href: "/admin", icon: LayoutGrid, roles: ["ADMIN", "MANAGER"] },
-  { key: "products", label: "Productos", href: "/admin/products", icon: Tags, roles: ["ADMIN", "MANAGER"] },
-  { key: "inventory", label: "Inventario", href: "/admin/inventory", icon: Package, roles: ["ADMIN", "MANAGER"] },
-  { key: "purchases", label: "Compras", href: "/admin/purchases", icon: ClipboardList, roles: ["ADMIN", "MANAGER"] },
-  { key: "reports", label: "Reportes", href: "/admin/reports", icon: BarChart3, roles: ["ADMIN", "MANAGER"] },
-  { key: "users", label: "Usuarios", href: "/admin/users", icon: Users, roles: ["ADMIN"] },
-  { key: "settings", label: "Configuración", href: "/admin/settings", icon: Settings, roles: ["ADMIN"] },
+  { key: "setup", label: "Dashboard", routeId: "setup", icon: LayoutGrid },
+  { key: "products", label: "Productos", routeId: "adminProducts", icon: Tags },
+  { key: "categories", label: "Categorías", routeId: "adminCategories", icon: FolderTree },
+
+  { key: "inventory", label: "Inventario", routeId: "adminInventory", icon: Package },
+  { key: "purchases", label: "Compras", routeId: "adminPurchases", icon: ClipboardList },
+  { key: "reports", label: "Reportes", routeId: "adminReports", icon: BarChart3 },
+  { key: "users", label: "Usuarios", routeId: "adminUsers", icon: Users },
+  { key: "settings", label: "Configuración", routeId: "adminSettings", icon: Settings },
+  { key: "device", label: "Dispositivo", routeId: "adminDevice", icon: Monitor },
 ];
 
 export function filterByRole(items: NavItem[], role: Role | null): NavItem[] {
   if (!role) return [];
-  return items.filter((i) => !i.roles || i.roles.includes(role));
+  return items.filter((it) => {
+    const allowed = ROUTES[it.routeId].rolesAllowed;
+    return allowed === null || allowed.includes(role);
+  });
 }

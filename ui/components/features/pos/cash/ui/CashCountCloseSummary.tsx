@@ -1,9 +1,9 @@
 "use client";
 
-import type { JSX } from "react";
 import { Card } from "@/components/ui/card";
-import type { CashCountReportDTO } from "@/lib/api.types";
+import type { CashCountReportDTO } from "@/lib/cash.types";
 import { cn } from "@/lib/utils";
+import type { JSX } from "react";
 
 type CashMode = "COUNT" | "CLOSE";
 

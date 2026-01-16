@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import type { OpenCashRequestDTO } from "@/lib/api.types";
 import { useCashStore } from "@/stores/cash.store";
+import { useCallback, useState } from "react";
 
-import { openCashSessionOrThrow } from "../services/openCashSessionOrThrow";
-import { getActiveCashSessionOrThrow } from "../services/getActiveCashSessionOrThrow";
+import { isApiHttpError } from "@/lib/api/envelope";
+import { OpenCashRequestDTO } from "@/lib/cash.types";
 import { authorizeOrThrow } from "../services/authorizeOrThrow";
-import { isApiHttpError } from "@/lib/api.errors";
+import { getActiveCashSessionOrThrow } from "../services/getActiveCashSessionOrThrow";
+import { openCashSessionOrThrow } from "../services/openCashSessionOrThrow";
 
 type Role = "ADMIN" | "MANAGER" | "CASHIER";
 

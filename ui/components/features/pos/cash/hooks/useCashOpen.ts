@@ -1,12 +1,13 @@
 // ui/components/features/pos/cash/hooks/useCashOpen.ts
 "use client";
 
-import { useCallback, useState } from "react";
+import type { ActiveCashResponseDTO, OpenCashRequestDTO, OpenCashResponseDTO } from "@/lib/cash.types";
 import { useCashStore } from "@/stores/cash.store";
-import type { OpenCashRequestDTO, OpenCashResponseDTO, ActiveCashResponseDTO, ApiEnvelope } from "@/lib/api.types";
+import { useCallback, useState } from "react";
 
-import { apiFetchEnvelope } from "@/lib/api";
 import { isApiOk } from "@/lib/api.guards";
+import { apiFetchEnvelope } from "@/lib/api/fetch";
+import { ApiEnvelope } from "@/lib/api/envelope";
 
 type UseCashOpenOptions = {
   terminalId: string | null;

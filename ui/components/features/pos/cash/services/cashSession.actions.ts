@@ -1,5 +1,5 @@
-import type { CurrencyCode, CashCountReportDTO } from "@/lib/api.types";
-import { apiFetchEnvelope } from "@/lib/api";
+import { apiFetchEnvelope } from "@/lib/api/fetch";
+import type { CashCountReportDTO, CurrencyCode } from "@/lib/cash.types";
 
 export type CashCounted = Partial<Record<CurrencyCode, number>>;
 

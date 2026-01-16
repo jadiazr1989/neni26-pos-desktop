@@ -1,7 +1,7 @@
 "use client";
 
 import { JSX, useMemo, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api/fetch";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

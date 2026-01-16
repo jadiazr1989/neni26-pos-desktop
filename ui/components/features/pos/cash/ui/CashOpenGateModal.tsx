@@ -1,13 +1,13 @@
 "use client";
 
-import type { JSX } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { OpenCashRequestDTO } from "@/lib/api.types";
+import type { OpenCashRequestDTO } from "@/lib/cash.types";
 import { useOpenCash } from "../hooks/useOpenCash";
 
 type GateReason = "OFFLINE" | "NO_TERMINAL" | "NO_ACTIVE_CASH" | "CHECKING" | "OK";

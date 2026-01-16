@@ -1,35 +1,8 @@
-// src/lib/api.types.ts
-export type ApiError = {
-  ok: false;
-  error: {
-    code: string;
-    reason: string;
-    message: string;
-    details?: unknown;
-    requestId?: string;
-  };
-};
-
 
 
 export type LoginRequest = { username: string; password: string };
 
 
-// src/lib/api.types.ts (o donde tengas ApiEnvelope)
-export type ApiOk<T> = { ok: true; data: T };
-
-
-export type ApiEnvelope<T> = ApiOk<T> | ApiError;
-
-export type ApiResult<T> = {
-  data: T;
-  headers: Headers;
-};
-
-// type guard
-export function isApiOk<T>(env: ApiEnvelope<T>): env is ApiOk<T> {
-  return env.ok === true;
-}
 
 export type Terminal = {
   id: string;

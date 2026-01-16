@@ -1,5 +1,5 @@
+import type { MeUser } from "@/lib/cash.types";
 import { create } from "zustand";
-import type { MeUser } from "@/lib/api.types";
 
 type SessionState = {
   user: MeUser | null;

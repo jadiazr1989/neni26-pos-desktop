@@ -1,7 +1,8 @@
-import "server-only";
 import { cookies } from "next/headers";
+import "server-only";
 
-import type { ApiEnvelope, MeResponse, MeUser } from "@/lib/api.types";
+import type { MeResponse, MeUser } from "@/lib/cash.types";
+import { ApiEnvelope } from "../api/envelope";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";

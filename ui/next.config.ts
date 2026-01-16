@@ -7,4 +7,13 @@ module.exports = {
     "http://localhost",
     "http://127.0.0.1",
   ],
+  async rewrites() {
+    const api = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+    return [
+      {
+        source: "/assets/:path*",
+        destination: `${api}/assets/:path*`,
+      },
+    ];
+  },
 };

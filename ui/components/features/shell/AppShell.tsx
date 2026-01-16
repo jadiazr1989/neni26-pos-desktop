@@ -3,11 +3,11 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo } from "react";
 
-import type { MeUser } from "@/lib/api.types";
+import type { MeUser } from "@/lib/cash.types";
 import { useSessionStore } from "@/stores/session.store";
 
 import type { Area, Role } from "./nav";
-import { POS_NAV, ADMIN_NAV, filterByRole } from "./nav";
+import { ADMIN_NAV, filterByRole, POS_NAV } from "./nav";
 import { ShellSidebar } from "./ui/ShellSidebar";
 import { ShellTopBar } from "./ui/ShellTopBar";
 

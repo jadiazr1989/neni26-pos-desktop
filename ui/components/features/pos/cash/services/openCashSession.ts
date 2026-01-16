@@ -1,7 +1,7 @@
-// components/features/pos/cash/services/openCashSession.ts
-import { apiFetchEnvelope } from "@/lib/api";
-import type { ApiEnvelope, OpenCashRequestDTO, OpenCashResponseDTO } from "@/lib/api.types";
-import { isApiOk } from "@/lib/api.guards";
+// components/features/pos/cash/services/openCashSession.ts\
+import { ApiEnvelope, isApiOk } from "@/lib/api.guards";
+import { apiFetchEnvelope } from "@/lib/api/fetch";
+import type { OpenCashRequestDTO, OpenCashResponseDTO } from "@/lib/cash.types";
 
 export async function openCashSession(input: { terminalId: string; payload: OpenCashRequestDTO }): Promise<OpenCashResponseDTO> {
   const res = await apiFetchEnvelope<ApiEnvelope<OpenCashResponseDTO>>(

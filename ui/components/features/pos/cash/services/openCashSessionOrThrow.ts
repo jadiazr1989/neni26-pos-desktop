@@ -1,6 +1,8 @@
 // ui/components/features/pos/cash/services/openCashSessionOrThrow.ts
-import { apiFetchEnvelope } from "@/lib/api";
-import type { ApiResult, OpenCashRequestDTO, OpenCashResponseDTO } from "@/lib/api.types";
+
+import { ApiResult } from "@/lib/api/envelope";
+import { apiFetchEnvelope } from "@/lib/api/fetch";
+import { OpenCashRequestDTO, OpenCashResponseDTO } from "@/lib/cash.types";
 
 export async function openCashSessionOrThrow(input: {
   terminalId: string;

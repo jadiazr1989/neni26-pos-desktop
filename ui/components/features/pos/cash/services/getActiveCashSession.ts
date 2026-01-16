@@ -1,7 +1,8 @@
 // components/features/pos/cash/services/getActiveCashSession.ts
-import { apiFetchEnvelope } from "@/lib/api";
-import type { ActiveCashResponseDTO, ApiEnvelope } from "@/lib/api.types";
 import { isApiOk } from "@/lib/api.guards";
+import { ApiEnvelope } from "@/lib/api/envelope";
+import { apiFetchEnvelope } from "@/lib/api/fetch";
+import type { ActiveCashResponseDTO } from "@/lib/cash.types";
 
 export async function getActiveCashSession(input: { terminalId: string }): Promise<ActiveCashResponseDTO> {
   const res = await apiFetchEnvelope<ApiEnvelope<ActiveCashResponseDTO>>(

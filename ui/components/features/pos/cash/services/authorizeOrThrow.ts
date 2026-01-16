@@ -1,6 +1,6 @@
 // components/features/pos/cash/services/authorizeOrThrow.ts
-import { apiFetch } from "@/lib/api";
-import type { AuthorizeRequestDTO, AuthorizeResponseDTO } from "@/lib/api.types";
+import { apiFetch } from "@/lib/api/fetch";
+import type { AuthorizeRequestDTO, AuthorizeResponseDTO } from "@/lib/cash.types";
 
 export async function authorizeOrThrow(input: {
   terminalId: string;

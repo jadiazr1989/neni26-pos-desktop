@@ -1,4 +1,4 @@
-import type { CurrencyCode } from "@/lib/api.types";
+import type { CurrencyCode } from "@/lib/cash.types";
 
 export type Counted = Partial<Record<CurrencyCode, number>>;
 

@@ -1,12 +1,12 @@
 "use client";
 
-import type { JSX, ReactNode } from "react";
-import { useEffect, useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import type { JSX, ReactNode } from "react";
+import { useCallback, useEffect } from "react";
 
-import type { MeUser, CurrencyCode, CashCountReportDTO } from "@/lib/api.types";
-import { useSessionStore } from "@/stores/session.store";
+import type { CashCountReportDTO, CurrencyCode, MeUser } from "@/lib/cash.types";
 import { useCashStore } from "@/stores/cash.store";
+import { useSessionStore } from "@/stores/session.store";
 
 import { CashOpenGateModal } from "@/components/features/pos/cash/ui/CashOpenGateModal";
 import { usePosCashierGate } from "../cash/hooks/usePosCashierGate";
@@ -15,16 +15,16 @@ import { usePosSaleStore } from "@/stores/posSale.store";
 import { PosBottomBar } from "./PosBottomBar";
 
 import {
-  countCashSession,
   closeCashSession,
+  countCashSession,
 } from "@/components/features/pos/cash/services/cashSession.actions";
 
 import { usePosShellOverlays } from "@/stores/posShellOverlays.store";
 import { CashCountCloseModal } from "../cash/ui/CashCountCloseModal";
 
+import { CashSessionMenu } from "../cash/ui/CashSessionMenu";
 import { PosShellTopBar } from "./ui/PosShellTopBar";
 import { PosStatusBar } from "./ui/PosStatusBar";
-import { CashSessionMenu } from "../cash/ui/CashSessionMenu";
 
 function CashBadgeDot(props: { show: boolean }): JSX.Element | null {
   if (!props.show) return null;

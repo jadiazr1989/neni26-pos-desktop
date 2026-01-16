@@ -1,7 +1,7 @@
 "use client";
 
+import type { CashCountReportDTO, CurrencyCode } from "@/lib/cash.types";
 import type { JSX } from "react";
-import type { CurrencyCode, CashCountReportDTO } from "@/lib/api.types";
 import { CashCountClosePanel } from "./CashCountClosePanel";
 
 type CashMode = "COUNT" | "CLOSE";

@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
-import { apiFetch } from "@/lib/api";
-import type { HandshakeRequest, HandshakeResponse } from "@/lib/api.types";
+import type { HandshakeRequest, HandshakeResponse } from "@/lib/cash.types";
 
 import { useSessionStore } from "@/stores/session.store";
 import { useTerminalStore } from "@/stores/terminal.store";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { BootLoading } from "@/components/ui/boot-skeleton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { apiFetch } from "@/lib/api/fetch";
 
 type BootState = "init" | "handshaking" | "done" | "error";
 
