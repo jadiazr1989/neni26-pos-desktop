@@ -1,6 +1,6 @@
-import { CategoriesScreen } from "@/components/features/catalog/category";
+import { CategoriesScreen } from "@/components/features/catalog/categories";
 
 
-export default function Page() {
+export default function CategoriesPage() {
   return <CategoriesScreen />;
 }

@@ -51,21 +51,27 @@ function toHttpError(
   res: Response,
   env: ApiEnvelope<unknown> | null
 ): ApiHttpError {
+  
   if (env && env.ok === false) {
+    const message =
+    env?.error?.message ??
+    `HTTP ${res.status}`;
     return new ApiHttpError({
-      message: env.error.message,
+      message: message,
       status: res.status,
       code: env.error.code,
       reason: env.error.reason,
       requestId: env.error.requestId,
     });
   }
+  
 
   return new ApiHttpError({
     message: `HTTP ${res.status} ${res.statusText || ""}`.trim(),
     status: res.status,
   });
 }
+
 
 export class ApiClient {
   private readonly baseUrl = resolveBaseUrl();

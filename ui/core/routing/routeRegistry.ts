@@ -122,7 +122,15 @@ export const ROUTES = {
     requiresCashOpen: false,
     rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
   },
-
+  adminBrands: {
+    id: "adminBrands",
+    path: "/admin/brands",
+    group: "admin",
+    requiresAuth: true,
+    requiresTerminal: false,
+    requiresCashOpen: false,
+    rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
+  },
   // POS
   dashboard: {
     id: "dashboard",

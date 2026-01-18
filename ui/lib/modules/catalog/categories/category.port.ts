@@ -9,7 +9,12 @@ import type {
   UpdateCategoryResponse,
 } from "./category.dto";
 
-export type ListParams = { search?: string; parentId?: string | null; take?: number; skip?: number };
+export type ListParams = {
+  search?: string;
+  parentId?: string | null;
+  take?: number;
+  skip?: number;
+};
 
 export interface CategoryPort {
   list(params?: ListParams): Promise<ListCategoriesResponse>;

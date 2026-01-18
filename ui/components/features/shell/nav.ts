@@ -12,6 +12,7 @@ import {
   Monitor,
   FolderTree,
   LayoutGrid,
+  BadgeCheck,
 } from "lucide-react";
 
 import { ROUTES, type RouteId, type UserRole } from "@/core/routing/routeRegistry";
@@ -39,6 +40,7 @@ export const ADMIN_NAV: NavItem[] = [
   { key: "setup", label: "Dashboard", routeId: "setup", icon: LayoutGrid },
   { key: "products", label: "Productos", routeId: "adminProducts", icon: Tags },
   { key: "categories", label: "Categorías", routeId: "adminCategories", icon: FolderTree },
+  { key: "brands", label: "Marcas", routeId: "adminBrands", icon: BadgeCheck },
 
   { key: "inventory", label: "Inventario", routeId: "adminInventory", icon: Package },
   { key: "purchases", label: "Compras", routeId: "adminPurchases", icon: ClipboardList },
