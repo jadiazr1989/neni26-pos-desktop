@@ -1,167 +1,119 @@
-// src/modules/catalog/products/ui/ui/ProductDialog.tsx
 "use client";
 
 import * as React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
-import type { ProductDTO } from "@/lib/modules/catalog/products/product.dto";
+import type { ProductDTO, VariantUnit } from "@/lib/modules/catalog/products/product.dto";
 import { productService } from "@/lib/modules/catalog/products/product.service";
-
-import { AsyncComboboxSingle } from "@/components/shared/AsyncComboboxSingle";
+import { submitProduct, type ProductServicePort } from "@/lib/modules/catalog/products/product.submit";
 import { useBrandOptions } from "../hooks/useBrandOptions";
 import { useCategoryOptions } from "../hooks/useCategoryOptions";
+import { useProductForm } from "../hooks/useProductForm";
+import { ProductDialogView } from "./ui/ProductDialog.view";
+import { isApiHttpError } from "@/lib/api/envelope";
+import { notify } from "@/lib/notify/notify";
 
 export function ProductDialog(props: {
-    open: boolean;
-    onOpenChange: (v: boolean) => void;
-    initial?: ProductDTO | null;
-    onSaved: (productId: string) => Promise<void> | void;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  initial?: ProductDTO | null;
+  onSaved: (productId: string) => Promise<void> | void;
+  service?: ProductServicePort;
 }) {
-    const mode = props.initial ? "edit" : "create";
+  const mode = props.initial ? "edit" : "create";
+  const service = props.service ?? productService;
 
-    const [name, setName] = React.useState("");
-    const [barcode, setBarcode] = React.useState("");
-    const [description, setDescription] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
 
-    const [brandId, setBrandId] = React.useState<string | null>(null);
-    const [categoryId, setCategoryId] = React.useState<string | null>(null);
-    const [formError, setFormError] = React.useState<string | null>(null);
+  const brands = useBrandOptions({ take: 50 });
+  const categories = useCategoryOptions({ take: 50 });
 
-    const [submitting, setSubmitting] = React.useState(false);
+  const form = useProductForm({ open: props.open, initial: props.initial, mode });
 
-    const brands = useBrandOptions({ take: 50 });
-    const categories = useCategoryOptions({ take: 50 });
+  async function onSubmit() {
+    form.setError(null);
 
-    React.useEffect(() => {
-        if (!props.open) return;
-        const p = props.initial;
-        setName(p?.name ?? "");
-        setBarcode(p?.barcode ?? "");
-        setDescription(p?.description ?? "");
-        setFormError(null);
-
-        setBrandId(p?.brandId ?? null);
-        setCategoryId(p?.categoryId ?? null);
-    }, [props.open, props.initial]);
-
-    async function submit() {
-        setSubmitting(true);
-        setFormError(null);
-        try {
-            const nameNorm = name.trim();
-            if (!nameNorm) {
-                setFormError("Nombre requerido.");
-                return;
-            }
-            if (!categoryId) {
-                setFormError("Categoría requerida.");
-                return;
-            }
-
-            if (mode === "create") {
-                const id = await productService.create({
-                    name: nameNorm,
-                    barcode: barcode.trim() || null,
-                    description: description.trim() || null,
-                    brandId,
-                    categoryId, // ✅ obligatorio
-                });
-                await props.onSaved(id);
-            } else {
-                const id = props.initial!.id;
-                await productService.update(id, {
-                    name: nameNorm,
-                    barcode: barcode.trim() || null,
-                    description: description.trim() || null,
-                    brandId,
-                    categoryId, // ✅ obligatorio
-                });
-                await props.onSaved(id);
-            }
-        } catch (e) {
-            setFormError(e instanceof Error ? e.message : "No se pudo guardar el producto.");
-        } finally {
-            setSubmitting(false);
-        }
+    const v = form.validate();
+    if (!v.ok) {
+      notify.warning({ title: "Revisa el formulario", description: v.error });
+      form.setError(v.error);
+      return;
     }
 
+    setSubmitting(true);
+    try {
+      const out = await submitProduct({
+        mode,
+        productId: mode === "edit" ? props.initial!.id : null,
+        value: v.value,
+        service,
+      });
 
-    return (
-        <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>{mode === "create" ? "Nuevo producto" : "Editar producto"}</DialogTitle>
-                </DialogHeader>
+      notify.success({
+        title: mode === "create" ? "Producto creado" : "Producto actualizado",
+        description: `ID: ${out.productId}`,
+      });
 
-                <div className="grid gap-3">
-                    {formError && <div className="text-sm text-destructive">{formError}</div>}
+      await props.onSaved(out.productId);
+      props.onOpenChange(false);
+    } catch (e: unknown) {
+      if (isApiHttpError(e)) {
+        // 409 = conflicto de negocio (friendly warning)
+        if (e.status === 409) {
+          notify.warning({ title: "No se pudo guardar", description: e.message });
+          form.setError(e.message);
+          return;
+        }
 
-                    <div className="grid gap-2">
-                        <div className="text-sm font-medium">Nombre</div>
-                        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Coca Cola" />
-                    </div>
+        // resto = error real
+        notify.error({ title: "Error guardando producto", description: e.message });
+        form.setError(e.message);
+        return;
+      }
 
-                    <div className="grid gap-2">
-                        <div className="text-sm font-medium">Barcode (opcional)</div>
-                        <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Ej: 0123456789" />
-                    </div>
+      const msg = e instanceof Error ? e.message : "No se pudo guardar el producto.";
+      notify.error({ title: "Error guardando producto", description: msg });
+      form.setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
-                    <div className="grid gap-2">
-                        <div className="text-sm font-medium">Descripción (opcional)</div>
-                        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej: 2L" />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                            <div className="text-sm font-medium">Marca</div>
-                            <AsyncComboboxSingle
-                                value={brandId}
-                                onChange={setBrandId}
-                                placeholder="Seleccionar marca…"
-                                searchPlaceholder="Buscar marca…"
-                                emptyText="Sin marcas."
-                                disabled={submitting}
-                                loadState={brands.loadState}
-                                loadError={brands.loadError}
-                                items={brands.items.map((b) => ({ value: b.id, label: b.name }))}
-                                search={brands.search}
-                                setSearch={brands.setSearch}
-                                ensureLoaded={brands.ensureLoaded}
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <div className="text-sm font-medium">Categoría</div>
-                            <AsyncComboboxSingle
-                                value={categoryId}
-                                onChange={setCategoryId}
-                                placeholder="Seleccionar categoría…"
-                                searchPlaceholder="Buscar categoría…"
-                                emptyText="Sin categorías."
-                                disabled={submitting}
-                                loadState={categories.loadState}
-                                loadError={categories.loadError}
-                                items={categories.items.map((c) => ({ value: c.id, label: c.slugPath ?? c.name }))}
-                                search={categories.search}
-                                setSearch={categories.setSearch}
-                                ensureLoaded={categories.ensureLoaded}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pt-2">
-                        <Button variant="secondary" onClick={() => props.onOpenChange(false)} disabled={submitting}>
-                            Cancelar
-                        </Button>
-                        <Button onClick={() => void submit()} disabled={submitting || !name.trim() || !categoryId}>
-                            Guardar
-                        </Button>
-
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
+  return (
+    <ProductDialogView
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      title={mode === "create" ? "Nuevo producto" : "Editar producto"}
+      submitting={submitting}
+      error={form.error}
+      mode={mode}
+      name={form.state.name}
+      barcode={form.state.barcode}
+      description={form.state.description}
+      brandId={form.state.brandId}
+      categoryId={form.state.categoryId}
+      baseUnit={form.state.baseUnit}
+      onNameChange={(x) => form.patch({ name: x })}
+      onBarcodeChange={(x) => form.patch({ barcode: x })}
+      onDescriptionChange={(x) => form.patch({ description: x })}
+      onBrandChange={(x) => form.patch({ brandId: x })}
+      onCategoryChange={(x) => form.patch({ categoryId: x })}
+      onBaseUnitChange={(u: VariantUnit) => form.patch({ baseUnit: u })}
+      onSubmit={() => void onSubmit()}
+      brandOptions={{
+        loadState: brands.loadState,
+        loadError: brands.loadError,
+        items: brands.items.map((b) => ({ value: b.id, label: b.name })),
+        search: brands.search,
+        setSearch: brands.setSearch,
+        ensureLoaded: brands.ensureLoaded,
+      }}
+      categoryOptions={{
+        loadState: categories.loadState,
+        loadError: categories.loadError,
+        items: categories.items.map((c) => ({ value: c.id, label: c.slugPath ?? c.name })),
+        search: categories.search,
+        setSearch: categories.setSearch,
+        ensureLoaded: categories.ensureLoaded,
+      }}
+    />
+  );
 }

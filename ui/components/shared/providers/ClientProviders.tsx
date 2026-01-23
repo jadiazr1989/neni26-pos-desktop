@@ -4,6 +4,7 @@ import { ServiceProvider } from "@/di";
 import { useCashStore, useTerminalStore } from "@/stores";
 import { useFavorites } from "@/stores/favorites.store";
 import { useEffect, useRef } from "react";
+import { Toaster } from "@/components/ui/sonner"; // ✅ este
 
 export default function ClientProviders({ children }: { readonly children: React.ReactNode }) {
   const didHydrate = useRef(false);
@@ -17,5 +18,10 @@ export default function ClientProviders({ children }: { readonly children: React
     void useCashStore.getState().hydrate();
   }, []);
 
-  return <ServiceProvider>{children}</ServiceProvider>;
+  return (
+    <ServiceProvider>
+      {children}
+      <Toaster position="top-right" />
+    </ServiceProvider>
+  );
 }

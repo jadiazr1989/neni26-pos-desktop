@@ -27,9 +27,14 @@ export function VirtualDataTable<T>(props: {
   hasMore?: boolean;
   onEndReached?: () => void;
 
+  // ✅ NUEVO
+  onRowClick?: (row: T) => void;
+  getRowClassName?: (row: T) => string; // opcional por si quieres custom per-row
+
   className?: string;
 }) {
   const hasMore = props.hasMore ?? false;
+  const clickable = typeof props.onRowClick === "function";
 
   return (
     <div className={cn("rounded-xl border border-border overflow-hidden", props.className)}>
@@ -57,15 +62,42 @@ export function VirtualDataTable<T>(props: {
             onEndReached={() => {
               if (!props.isLoading && hasMore) props.onEndReached?.();
             }}
-            renderRow={(row) => (
-              <div key={props.rowKey(row)} className="grid grid-cols-12 gap-2 px-3 py-2 items-center">
-                {props.columns.map((c) => (
-                  <div key={c.key} className={c.className}>
-                    {c.render(row)}
-                  </div>
-                ))}
-              </div>
-            )}
+            renderRow={(row) => {
+              const key = props.rowKey(row);
+
+              return (
+                <div
+                  key={key}
+                  role={clickable ? "button" : undefined}
+                  tabIndex={clickable ? 0 : undefined}
+                  aria-disabled={clickable ? props.isLoading : undefined}
+                  className={cn(
+                    "grid grid-cols-12 gap-2 px-3 py-2 items-center outline-none",
+                    clickable &&
+                      "cursor-pointer hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    props.isLoading && clickable && "opacity-60 pointer-events-none",
+                    props.getRowClassName?.(row)
+                  )}
+                  onClick={() => {
+                    if (!clickable || props.isLoading) return;
+                    props.onRowClick?.(row);
+                  }}
+                  onKeyDown={(e) => {
+                    if (!clickable || props.isLoading) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      props.onRowClick?.(row);
+                    }
+                  }}
+                >
+                  {props.columns.map((c) => (
+                    <div key={c.key} className={c.className}>
+                      {c.render(row)}
+                    </div>
+                  ))}
+                </div>
+              );
+            }}
           />
         </div>
       )}

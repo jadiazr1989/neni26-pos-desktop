@@ -63,7 +63,14 @@ export function CategoriesTreeTable(props: {
           <RowActions
             onEdit={() => props.onEdit(c)}
             onDelete={() => props.onDelete(c.id)}
-            deleteConfirm={{ title: "Eliminar categoría", message: "Esto es hard delete. ¿Continuar?" }}
+            deleteConfirm={{
+              title: "Eliminar categoría",
+              message: "Esta acción es permanente. Si tiene hijos o productos, no se podrá eliminar.",
+              confirmText: "Eliminar",
+              cancelText: "Cancelar",
+              destructive: true,
+            }}
+
             disabled={props.loading}
           />
         ),

@@ -42,11 +42,14 @@ export type CreateProductInput = {
   description?: string | null;
   barcode?: string | null;
   brandId?: string | null;
-  categoryId?: string | null;
+  categoryId: string;
   status?: ProductStatus;
+
+  baseUnit: VariantUnit;
 };
 
-export type CreateProductResponse = { productId: string };
+export type CreateProductResponse = { productId: string; baseVariantId: string };
+
 
 export type UpdateProductInput = Partial<CreateProductInput>;
 export type UpdateProductResponse = { product: { id: string } };
@@ -57,7 +60,7 @@ export type CreateVariantInput = {
   sku: string;
   barcode?: string | null;
   title?: string | null;
-  attributes?: JsonValue | null;        // ✅ required (tu Prisma lo pide)
+  attributes: JsonValue | null;        // ✅ required (tu Prisma lo pide)
   unit: VariantUnit;         // ✅ required
   priceBaseMinor: number;
   costBaseMinor: number;

@@ -13,7 +13,7 @@ import type {
 export type ListProductsQuery = ListParams;
 
 class ProductService {
-  constructor(private readonly port: ProductPort) {}
+  constructor(private readonly port: ProductPort) { }
 
   async list(q: ListProductsQuery = {}): Promise<ProductDTO[]> {
     const res = await this.port.list(q);
@@ -25,10 +25,11 @@ class ProductService {
     return res.product;
   }
 
-  async create(input: CreateProductInput): Promise<string> {
+  async create(input: CreateProductInput): Promise<{ productId: string; baseVariantId: string }> {
     const res = await this.port.create(input);
-    return res.productId;
+    return { productId: res.productId, baseVariantId: res.baseVariantId };
   }
+
 
   async update(id: string, patch: UpdateProductInput): Promise<void> {
     await this.port.update(id, patch);

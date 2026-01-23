@@ -3,12 +3,12 @@
 
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { CategoryDTO } from "@/lib/modules/catalog/categories";
 import { CategoryImagePicker } from "./CategoryImagePicker";
 import { CategoryParentComboBox } from "./CategoryParentComboBox";
 import { slugify } from "@/lib/slugify";
+import { ButtonSpinner } from "@/components/ui/button-spinner";
 
 type Mode = "create" | "edit";
 
@@ -42,19 +42,34 @@ export function CategoryDialog(props: {
     setSlug(props.initial?.slug ?? "");
     setParentId(props.initial?.parentId ?? null);
     setImageFile(null);
+    setSubmitting(false);
+    slugTouchedRef.current = false;
   }, [props.open, props.initial]);
 
+  // ✅ guard anti doble submit (por click/enter)
+  const submitLock = React.useRef(false);
+
   async function submit() {
+    if (disabled) return;
+    if (submitLock.current) return;
+
+    const finalName = name.trim();
+    const finalSlug = slug.trim();
+
+    if (!finalName || !finalSlug) return;
+
+    submitLock.current = true;
     setSubmitting(true);
     try {
       await props.onSubmit({
-        name: name.trim(),
-        slug: slug.trim(),
+        name: finalName,
+        slug: finalSlug,
         parentId,
         imageFile,
       });
     } finally {
       setSubmitting(false);
+      submitLock.current = false;
     }
   }
 
@@ -67,9 +82,7 @@ export function CategoryDialog(props: {
 
   function onNameChange(v: string) {
     setName(v);
-    if (!slugTouchedRef.current) {
-      setSlug(slugify(v));
-    }
+    if (!slugTouchedRef.current) setSlug(slugify(v));
   }
 
   return (
@@ -86,6 +99,7 @@ export function CategoryDialog(props: {
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
               placeholder="Ej: Bebidas"
+              disabled={disabled}
             />
           </div>
 
@@ -95,6 +109,7 @@ export function CategoryDialog(props: {
               value={slug}
               onChange={(e) => onSlugChange(e.target.value)}
               placeholder="ej: bebidas"
+              disabled={disabled}
             />
           </div>
 
@@ -108,12 +123,24 @@ export function CategoryDialog(props: {
           <CategoryImagePicker value={imageFile} onChange={setImageFile} />
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => props.onOpenChange(false)} disabled={disabled}>
+            <ButtonSpinner
+              type="button"
+              variant="secondary"
+              onClick={() => props.onOpenChange(false)}
+              busy={false}
+              disabled={disabled}
+            >
               Cancelar
-            </Button>
-            <Button onClick={() => void submit()} disabled={disabled || !name.trim() || !slug.trim()}>
-              Guardar
-            </Button>
+            </ButtonSpinner>
+
+            <ButtonSpinner
+              type="button"
+              onClick={() => void submit()}
+              busy={submitting}
+              disabled={disabled || !name.trim() || !slug.trim()}
+            >
+              {submitting ? "Guardando..." : "Guardar"}
+            </ButtonSpinner>
           </div>
         </div>
       </DialogContent>

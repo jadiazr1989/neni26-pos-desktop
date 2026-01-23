@@ -4,6 +4,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Plus, RefreshCw } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,20 +18,52 @@ import { ProductDialog } from "./ui/ProductDialog";
 import { useRouter } from "next/navigation";
 import { VariantDialog } from "./ui/VariantDialog";
 
-export function ProductsScreen() {
+import { notify } from "@/lib/notify/notify";
+import { isApiHttpError } from "@/lib/api/envelope"; // ✅ recomendado (un solo lugar)
 
+export function ProductsScreen() {
   const router = useRouter();
   const list = useProductsList({ debounceMs: 300 });
+
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ProductDTO | null>(null);
+
   const [variantDlgOpen, setVariantDlgOpen] = React.useState(false);
   const [variantProductId, setVariantProductId] = React.useState<string | null>(null);
 
   async function onDelete(id: string) {
     const ok = window.confirm("Eliminar producto (solo si NO tiene variants). ¿Continuar?");
     if (!ok) return;
-    await productService.remove(id);
-    await list.refresh();
+
+    try {
+      await productService.remove(id);
+      notify.success({ title: "Eliminado", description: "Producto eliminado correctamente." });
+      await list.refresh();
+    } catch (e: unknown) {
+      if (isApiHttpError(e)) {
+        // 409 = conflicto de negocio (ej: tiene variantes)
+        if (e.status === 409) {
+          // si tu backend manda code específico, úsalo; si no, solo el status
+          if (e.code === "PRODUCT_HAS_VARIANTS") {
+            notify.warning({
+              title: "No se puede eliminar",
+              description: "Este producto tiene variantes. Elimina las variantes primero e intenta de nuevo.",
+            });
+            return;
+          }
+
+          notify.warning({ title: "No se puede eliminar", description: e.message });
+          return;
+        }
+
+        // resto = error real
+        notify.error({ title: "Error", description: e.message });
+        return;
+      }
+
+      const msg = e instanceof Error ? e.message : "No se pudo eliminar el producto.";
+      notify.error({ title: "Error", description: msg });
+    }
   }
 
   return (
@@ -52,8 +85,7 @@ export function ProductsScreen() {
               setEditing(null);
               setDialogOpen(true);
             }}
-            variant=
-            "outline"
+            variant="outline"
           >
             <Plus className="mr-2 size-4" />
             Nuevo
@@ -114,15 +146,13 @@ export function ProductsScreen() {
         }}
         initial={editing}
         onSaved={async (productId) => {
-
           setDialogOpen(false);
           setEditing(null);
           await list.refresh();
 
-          // 🔥 en vez de ir directo al detalle, abre el dialog de variante
           setVariantProductId(productId);
           setVariantDlgOpen(true);
-          // abre detalle luego de crear
+
           router.push(`/admin/products/${productId}`);
         }}
       />
@@ -141,7 +171,6 @@ export function ProductsScreen() {
           if (variantProductId) router.push(`/admin/products/${variantProductId}`);
         }}
       />
-
     </div>
   );
 }

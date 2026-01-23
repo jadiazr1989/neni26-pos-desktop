@@ -21,10 +21,12 @@ export type VariantFormOutput = {
   barcode: string | null;
   title: string | null;
   unit: VariantUnit;
+  attributes: null;              // ✅ add
   priceBaseMinor: number;
   costBaseMinor: number;
   imageFile: File | null;
 };
+
 
 export function useVariantForm(args: {
   open: boolean;
@@ -83,19 +85,25 @@ export function useVariantForm(args: {
     if (costMinor > priceMinor) return { ok: false, error: "Costo no puede ser mayor que precio." };
 
     const title = state.title.trim() || null;
+    
+    if (args.mode === "create" && !state.imageFile) {
+      return { ok: false, error: "Imagen requerida para la variante." };
+    }
 
     return {
       ok: true,
       value: {
         sku,
-        barcode: barcodeNorm, // null o string
+        barcode: barcodeNorm,
         title,
         unit: state.unit as VariantUnit,
+        attributes: null,            // ✅ always null for now
         priceBaseMinor: priceMinor,
         costBaseMinor: costMinor,
         imageFile: state.imageFile,
       },
     };
+
   }
 
   return {

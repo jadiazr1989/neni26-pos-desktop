@@ -19,6 +19,7 @@ export function VariantDialog(props: {
   mode: Mode;
   productId: string;
   initial: ProductVariantDTO | null;
+  variantId?: string; // ✅ NEW
   onOpenChange: (v: boolean) => void;
   onSaved: () => Promise<void> | void;
 }) {
@@ -40,7 +41,6 @@ export function VariantDialog(props: {
       return;
     }
 
-    // ✅ imagen obligatoria SOLO se valida al submit (no bloquea botón)
     if (props.mode === "create" && !v.value.imageFile) {
       form.setError("Imagen requerida para crear la variante.");
       return;
@@ -57,11 +57,16 @@ export function VariantDialog(props: {
           priceBaseMinor: v.value.priceBaseMinor,
           costBaseMinor: v.value.costBaseMinor,
           isActive: true,
+          attributes: v.value.attributes
         });
 
         await productService.uploadVariantImage(variantId, v.value.imageFile!);
       } else {
-        const id = props.initial!.id;
+        const id = (props.variantId ?? props.initial?.id ?? "").trim();
+        if (!id) {
+          form.setError("variantId requerido para editar.");
+          return;
+        }
 
         await productService.updateVariant(id, {
           sku: v.value.sku,
@@ -106,11 +111,7 @@ export function VariantDialog(props: {
             />
           </div>
 
-          <VariantUnitSelect
-            value={form.state.unit}
-            onChange={(u) => form.patch({ unit: u })}
-            disabled={disabled}
-          />
+          <VariantUnitSelect value={form.state.unit} onChange={(u) => form.patch({ unit: u })} disabled={disabled} />
 
           <div className="grid gap-2">
             <div className="text-sm font-medium">Barcode (opcional)</div>
@@ -153,26 +154,14 @@ export function VariantDialog(props: {
             </div>
           </div>
 
-          <VariantImagePicker
-            value={form.state.imageFile}
-            onChange={(f) => form.patch({ imageFile: f })}
-            disabled={disabled}
-          />
+          <VariantImagePicker value={form.state.imageFile} onChange={(f) => form.patch({ imageFile: f })} disabled={disabled} />
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => props.onOpenChange(false)} disabled={disabled}>
               Cancelar
             </Button>
 
-            <Button
-              onClick={() => void submit()}
-              disabled={
-                disabled ||
-                !form.state.sku.trim() ||
-                !form.state.unit
-                // ✅ NO bloqueamos por imageFile
-              }
-            >
+            <Button onClick={() => void submit()} disabled={disabled || !form.state.sku.trim() || !form.state.unit}>
               Guardar
             </Button>
           </div>

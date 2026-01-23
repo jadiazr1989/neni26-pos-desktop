@@ -4,8 +4,8 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import type { ProductDTO, ProductVariantDTO } from "@/lib/modules/catalog/products/product.dto";
-import { VariantDialog } from "./VariantDialog";
 import { VariantsTable } from "./VariantsTable";
+import { VariantDialog } from "./VariantDialog";
 
 export function VariantsSection(props: {
   product: ProductDTO;

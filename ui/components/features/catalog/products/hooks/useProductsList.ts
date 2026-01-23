@@ -32,9 +32,11 @@ export function useProductsList(opts?: { debounceMs?: number }) {
   });
 
   React.useEffect(() => {
+    if (pager.loading) return;
     void pager.loadMore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryKey]);
+
 
   const refresh = React.useCallback(async () => {
     pager.reset();

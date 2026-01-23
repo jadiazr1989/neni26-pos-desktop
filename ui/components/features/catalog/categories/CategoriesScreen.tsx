@@ -14,6 +14,9 @@ import { useCategoryTree } from "./hooks/useCategoryTree";
 import { CategoriesTreeTable } from "./ui/CategoriesTreeTable";
 import { CategoryDialog } from "./ui/CategoryDialog";
 import { CategoriesNavHeader } from "./ui/CategoriesNavHeader";
+import { ApiHttpError } from "@/lib/api.errors";
+import { notify } from "@/lib/notify/notify";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 export function CategoriesScreen() {
   const tree = useCategoryTree({ debounceMs: 300 });
@@ -21,6 +24,7 @@ export function CategoriesScreen() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<"create" | "edit">("create");
   const [selected, setSelected] = React.useState<CategoryDTO | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
 
   const isSearching = tree.search.trim().length > 0;
 
@@ -29,41 +33,100 @@ export function CategoriesScreen() {
     [isSearching, tree.breadcrumbs]
   );
 
+  async function confirmDelete() {
+    if (!confirmDeleteId) return;
+
+    try {
+      await categoryService.remove(confirmDeleteId);
+      notify.success({
+        title: "Categoría eliminada",
+        description: "La categoría se eliminó correctamente.",
+      });
+      await tree.refresh();
+    } catch (e: unknown) {
+      if (e instanceof ApiHttpError) {
+        if (e.status === 409) {
+          notify.warning({
+            title: "No se puede eliminar",
+            description:
+              "Esta categoría tiene subcategorías o productos asociados.",
+          });
+          return;
+        }
+        notify.error({ title: "Error", description: e.message });
+        return;
+      }
+
+      notify.error({
+        title: "Error inesperado",
+        description: "No se pudo eliminar la categoría.",
+      });
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  }
+
   async function onSubmit(payload: { name: string; slug: string; parentId: string | null; imageFile: File | null }) {
     tree.setError(null);
 
-    if (dialogMode === "create") {
-      const finalParentId = payload.parentId ?? tree.parentId;
+    try {
+      if (dialogMode === "create") {
+        const finalParentId = payload.parentId ?? tree.parentId;
+        const id = await categoryService.create({
+          name: payload.name,
+          slug: payload.slug,
+          parentId: finalParentId,
+        });
 
-      const id = await categoryService.create({
-        name: payload.name,
-        slug: payload.slug,
-        parentId: finalParentId,
-      });
+        if (payload.imageFile) {
+          await categoryService.uploadImage(id, payload.imageFile);
+        }
 
-      if (payload.imageFile) await categoryService.uploadImage(id, payload.imageFile);
-    } else if (selected) {
-      await categoryService.update(selected.id, {
-        name: payload.name,
-        slug: payload.slug,
-        parentId: payload.parentId,
+        notify.success({
+          title: "Categoría creada",
+          description: payload.name,
+        });
+      } else if (selected) {
+        await categoryService.update(selected.id, {
+          name: payload.name,
+          slug: payload.slug,
+          parentId: payload.parentId,
+        });
+
+        if (payload.imageFile) {
+          await categoryService.uploadImage(selected.id, payload.imageFile);
+        }
+
+        notify.success({
+          title: "Categoría actualizada",
+          description: payload.name,
+        });
+      }
+
+      setDialogOpen(false);
+      setSelected(null);
+      await tree.refresh();
+    } catch (e: unknown) {
+      if (e instanceof ApiHttpError) {
+        notify.warning({
+          title: "No se pudo guardar",
+          description: e.message,
+        });
+        tree.setError(e.message);
+        return;
+      }
+
+      notify.error({
+        title: "Error",
+        description: "No se pudo guardar la categoría.",
       });
-      if (payload.imageFile) await categoryService.uploadImage(selected.id, payload.imageFile);
     }
-
-    setDialogOpen(false);
-    setSelected(null);
-    await tree.refresh();
   }
 
   async function onDelete(id: string) {
-    tree.setError(null);
-    const ok = window.confirm("Eliminar categoría (hard delete). ¿Continuar?");
-    if (!ok) return;
-
-    await categoryService.remove(id);
-    await tree.refresh();
+    setConfirmDeleteId(id);
   }
+
 
   return (
     <div className="space-y-4">
@@ -159,6 +222,16 @@ export function CategoriesScreen() {
         onOpenChange={setDialogOpen}
         onSubmit={onSubmit}
       />
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(v) => !v && setConfirmDeleteId(null)}
+        title="Eliminar categoría"
+        description="Esta acción eliminará la categoría de forma permanente. ¿Deseas continuar?"
+        confirmText="Eliminar"
+        onConfirm={confirmDelete}
+      />
+
     </div>
   );
 }
