@@ -18,7 +18,10 @@ export function ProductsTable(props: {
 
   onOpen: (p: ProductDTO) => void;
   onEdit: (p: ProductDTO) => void;
-  onDelete: (id: string) => Promise<void>;
+  selectedId?: string | null; // 👈 NUEVO
+  // ✅ ahora pasa name también
+  onDelete: (id: string, name: string) => Promise<void> | void;
+
   height?: number;
 }) {
   const columns = React.useMemo<Array<VirtualColumnDef<ProductDTO>>>(() => {
@@ -30,9 +33,7 @@ export function ProductsTable(props: {
         render: (p) => (
           <button onClick={() => props.onOpen(p)} className="w-full text-left">
             <div className="font-medium truncate">{p.name}</div>
-            <div className="text-xs text-muted-foreground truncate">
-              Barcode: {p.barcode ?? "—"}
-            </div>
+            <div className="text-xs text-muted-foreground truncate">Barcode: {p.barcode ?? "—"}</div>
           </button>
         ),
       },
@@ -67,8 +68,14 @@ export function ProductsTable(props: {
         render: (p) => (
           <RowActions
             onEdit={() => props.onEdit(p)}
-            onDelete={() => props.onDelete(p.id)}
-            deleteConfirm={{ title: "Eliminar producto", message: "Solo si NO tiene variantes. ¿Continuar?" }}
+            onDelete={() => props.onDelete(p.id, p.name)}
+            deleteConfirm={{
+              title: "Confirmar",
+              message: "Solo se puede eliminar si NO tiene variantes. ¿Deseas continuar?",
+              confirmText: "Continuar",
+              cancelText: "Cancelar",
+              destructive: false, // ✅ paso 1 NO rojo
+            }}
             disabled={props.loading}
           />
         ),
@@ -87,7 +94,10 @@ export function ProductsTable(props: {
       isLoading={props.loading}
       hasMore={props.hasMore}
       onEndReached={props.loadMore}
-      empty={<span className="text-sm text-muted-foreground">Sin productos.</span>}
+      getRowClassName={(row) =>
+        row.id === props.selectedId ? "bg-muted/60 ring-1 ring-ring" : ""
+      }
     />
+
   );
 }

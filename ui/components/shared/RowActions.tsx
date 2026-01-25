@@ -2,8 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { Pencil, Trash2 } from "lucide-react";
-
+import { Pencil, Power, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -15,65 +14,141 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ButtonSpinner } from "../ui/button-spinner";
+import { ButtonSpinner } from "@/components/ui/button-spinner";
 
 export type RowActionsProps = {
-  onEdit?: () => void;
-  onDelete?: () => Promise<void> | void;
+  /** Backward-compatible alias (you said you already use this everywhere) */
   disabled?: boolean;
 
+  /** Existing prop in your component */
+  loading?: boolean;
+
+  /** Edit */
+  onEdit?: () => void;
+
+  /** Toggle / Enable-Disable (existing behavior) */
+  onToggle?: () => Promise<void> | void;
+  hideToggle?: boolean;
+  toggleConfirm?: {
+    title: string;
+    message: string;
+    confirmText: string;
+    destructive?: boolean;
+  };
+
+  /** Delete (new) */
+  onDelete?: () => Promise<void> | void;
+  hideDelete?: boolean;
   deleteConfirm?: {
     title: string;
     message: string;
-    confirmText?: string;
+    confirmText: string;
     cancelText?: string;
-    destructive?: boolean; // default true
+    destructive?: boolean;
   };
 };
 
-export function RowActions(p: RowActionsProps) {
-  const [open, setOpen] = React.useState(false);
+type DialogKind = "toggle" | "delete";
+
+export function RowActions({
+  disabled,
+  loading,
+
+  onEdit,
+
+  onToggle,
+  hideToggle,
+  toggleConfirm,
+
+  onDelete,
+  hideDelete,
+  deleteConfirm,
+}: RowActionsProps) {
+  const [open, setOpen] = React.useState<DialogKind | null>(null);
   const [busy, setBusy] = React.useState(false);
 
-  const canEdit = Boolean(p.onEdit);
-  const canDelete = Boolean(p.onDelete);
+  const isDisabled = !!disabled || !!loading || busy;
 
-  async function runDelete() {
-    if (!p.onDelete) return;
-
-    // si NO hay confirm config => borra directo
-    if (!p.deleteConfirm) {
-      setBusy(true);
-      try {
-        await p.onDelete();
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-
-    // con confirm dialog
+  async function run(fn?: (() => Promise<void> | void), kind?: DialogKind) {
+    if (!fn || busy) return;
     setBusy(true);
     try {
-      await p.onDelete();
-      setOpen(false);
+      await fn();
+      if (kind) setOpen(null);
     } finally {
       setBusy(false);
     }
   }
 
+  const canToggle = !hideToggle && !!onToggle && !!toggleConfirm;
+  const canDelete = !hideDelete && !!onDelete && !!deleteConfirm;
+
   return (
-    <div className="flex items-center justify-end gap-2">
-      {canEdit && (
+    <div className="flex items-center justify-end gap-1">
+      {onEdit && (
         <Button
           variant="ghost"
           size="icon"
-          onClick={p.onEdit}
-          disabled={p.disabled || busy}
+          onClick={onEdit}
+          disabled={isDisabled}
           title="Editar"
         >
           <Pencil className="size-4" />
         </Button>
+      )}
+
+      {canToggle && (
+        <>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen("toggle")}
+            disabled={isDisabled}
+            title={toggleConfirm!.confirmText}
+          >
+            <Power
+              className={
+                toggleConfirm!.destructive
+                  ? "size-4 text-destructive"
+                  : "size-4"
+              }
+            />
+          </Button>
+
+          <AlertDialog
+            open={open === "toggle"}
+            onOpenChange={(v) => !busy && setOpen(v ? "toggle" : null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{toggleConfirm!.title}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {toggleConfirm!.message}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={busy}>
+                  Cancelar
+                </AlertDialogCancel>
+
+                <AlertDialogAction asChild>
+                  <ButtonSpinner
+                    busy={busy}
+                    onClick={() => void run(onToggle, "toggle")}
+                    className={
+                      toggleConfirm!.destructive
+                        ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        : ""
+                    }
+                  >
+                    {toggleConfirm!.confirmText}
+                  </ButtonSpinner>
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       )}
 
       {canDelete && (
@@ -81,46 +156,52 @@ export function RowActions(p: RowActionsProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => (p.deleteConfirm ? setOpen(true) : void runDelete())}
-            disabled={p.disabled || busy}
-            title="Eliminar"
+            onClick={() => setOpen("delete")}
+            disabled={isDisabled}
+            title={deleteConfirm!.confirmText}
           >
-            <Trash2 className="size-4 text-destructive" />
+            <Trash2
+              className={
+                deleteConfirm!.destructive !== false
+                  ? "size-4 text-destructive"
+                  : "size-4"
+              }
+            />
           </Button>
 
-          {p.deleteConfirm && (
-            <AlertDialog open={open} onOpenChange={setOpen}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{p.deleteConfirm.title}</AlertDialogTitle>
-                  <AlertDialogDescription>{p.deleteConfirm.message}</AlertDialogDescription>
-                </AlertDialogHeader>
+          <AlertDialog
+            open={open === "delete"}
+            onOpenChange={(v) => !busy && setOpen(v ? "delete" : null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{deleteConfirm!.title}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {deleteConfirm!.message}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
 
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={busy}>
-                    {p.deleteConfirm.cancelText ?? "Cancelar"}
-                  </AlertDialogCancel>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={busy}>
+                  {deleteConfirm!.cancelText ?? "Cancelar"}
+                </AlertDialogCancel>
 
-                  {/* Usamos ButtonSpinner para busy */}
-                  <AlertDialogAction asChild>
-                    <ButtonSpinner
-                      type="button"
-                      busy={busy}
-                      onClick={() => void runDelete()}
-                      className={
-                        (p.deleteConfirm.destructive ?? true)
-                          ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          : ""
-                      }
-                      icon={<Trash2 className="size-4" />}
-                    >
-                      {busy ? "Eliminando..." : p.deleteConfirm.confirmText ?? "Eliminar"}
-                    </ButtonSpinner>
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+                <AlertDialogAction asChild>
+                  <ButtonSpinner
+                    busy={busy}
+                    onClick={() => void run(onDelete, "delete")}
+                    className={
+                      deleteConfirm!.destructive !== false
+                        ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        : ""
+                    }
+                  >
+                    {deleteConfirm!.confirmText}
+                  </ButtonSpinner>
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>

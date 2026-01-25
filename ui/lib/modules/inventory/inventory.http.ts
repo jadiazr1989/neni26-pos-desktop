@@ -60,12 +60,10 @@ export class InventoryHttpAdapter implements InventoryPort {
     });
   }
 
-  // ✅ terminal warehouse (NO warehouseId param)
   getMyWarehouseStock(opts?: { limit?: number; cursor?: string | null }): Promise<GetWarehouseStockResponse> {
     return apiClient.json(`/api/v1/inventory/warehouse${toQuery(opts)}`, { method: "GET" });
   }
 
-  // admin explicit warehouse
   getWarehouseStock(params: WarehouseStockParams): Promise<GetWarehouseStockResponse> {
     const { warehouseId, ...rest } = params;
     return apiClient.json(`/api/v1/inventory/warehouse/${warehouseId}${toQuery(rest)}`, { method: "GET" });

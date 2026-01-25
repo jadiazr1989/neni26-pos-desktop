@@ -1,27 +1,22 @@
 // components/features/pos/shell/hooks/usePosCashierGate.ts
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-
-import { useTerminalStore } from "@/stores/terminal.store";
-import { useCashStore } from "@/stores/cash.store";
+import { useEffect, useMemo, useState } from "react";
 
 import { useApiConnectivity } from "@/components/features/dashboard/hooks/useApiConnectivity";
 import { getActiveCashSessionOrThrow } from "@/components/features/pos/cash/services/getActiveCashSessionOrThrow";
+import { useCashStore } from "@/stores/cash.store";
+import { useTerminalStore } from "@/stores/terminal.store";
 
-type GateReason =
-  | "OFFLINE"
-  | "NO_TERMINAL"
-  | "NO_ACTIVE_CASH"
-  | "CHECKING"
-  | "OK";
+type GateReason = "OFFLINE" | "NO_TERMINAL" | "NO_ACTIVE_CASH" | "CHECKING" | "OK";
 
 export function usePosCashierGate(pollMs = 15000) {
   const router = useRouter();
   const pathname = usePathname();
 
   const hydrateTerminal = useTerminalStore((s) => s.hydrate);
+  const hydrated = useTerminalStore((s) => s.hydrated);
   const xTerminalId = useTerminalStore((s) => s.xTerminalId);
 
   const cashActive = useCashStore((s) => s.active);
@@ -32,9 +27,9 @@ export function usePosCashierGate(pollMs = 15000) {
   const [checkingCash, setCheckingCash] = useState(false);
   const [checkedOnce, setCheckedOnce] = useState(false);
 
-  // 1) hydrate terminal
+  // 1) hydrate terminal (una vez)
   useEffect(() => {
-    hydrateTerminal();
+    void hydrateTerminal();
   }, [hydrateTerminal]);
 
   const terminalReady = Boolean(xTerminalId);
@@ -42,21 +37,22 @@ export function usePosCashierGate(pollMs = 15000) {
   const online = apiStatus === "online";
   const offline = apiStatus === "offline";
 
-  // 2) si no hay terminal => /boot
+  // ✅ 2) NO redirijas hasta que hydrated=true
   useEffect(() => {
-    if (pathname.startsWith("/boot")) return;
-    if (!terminalReady) router.replace("/boot");
-  }, [terminalReady, router, pathname]);
+    if (!hydrated) return; // <- CLAVE
+    if (pathname.startsWith("/admin/dashboard")) return; // evita loops raros si compartes shell
+    if (!terminalReady) router.replace("/admin/dashboard"); // o "/terminal-required"
+  }, [hydrated, terminalReady, router, pathname]);
 
-  // 3) si online + terminal => check cash activa (1 vez al entrar o cuando cambie terminal/online)
+  // 3) check cash
   useEffect(() => {
     let mounted = true;
 
     async function run() {
+      if (!hydrated) return;        // <- CLAVE (no checks antes de hidratar)
       if (!terminalReady) return;
       if (!online) return;
 
-      // si ya está abierta, no gastes request
       if (cashOpen) {
         setCheckedOnce(true);
         return;
@@ -66,47 +62,40 @@ export function usePosCashierGate(pollMs = 15000) {
       try {
         const dto = await getActiveCashSessionOrThrow({ terminalId: xTerminalId! });
         if (!mounted) return;
-
-        if (dto.cashSession) {
-          setActiveCash(dto.cashSession);
-        }
+        if (dto.cashSession) setActiveCash(dto.cashSession);
         setCheckedOnce(true);
       } catch {
-        // si falla el check (403/500/etc) igual marcamos checkedOnce para no loop infinito,
-        // y el modal puede bloquear venta hasta que el usuario refresque o vuelva online.
         if (mounted) setCheckedOnce(true);
       } finally {
         if (mounted) setCheckingCash(false);
       }
     }
 
-    run();
+    void run();
     return () => {
       mounted = false;
     };
-  }, [terminalReady, online, cashOpen, xTerminalId, setActiveCash]);
+  }, [hydrated, terminalReady, online, cashOpen, xTerminalId, setActiveCash]);
 
   const reason: GateReason = useMemo(() => {
+    if (!hydrated) return "CHECKING";
     if (!terminalReady) return "NO_TERMINAL";
     if (offline) return "OFFLINE";
     if (checkingCash) return "CHECKING";
     if (online && checkedOnce && !cashOpen) return "NO_ACTIVE_CASH";
     if (online && cashOpen) return "OK";
     return "CHECKING";
-  }, [terminalReady, offline, checkingCash, online, checkedOnce, cashOpen]);
+  }, [hydrated, terminalReady, offline, checkingCash, online, checkedOnce, cashOpen]);
 
-  const readyToSell = online && terminalReady && cashOpen;
-
-  // Modal obligatorio SOLO cuando: online + terminalReady + ya chequeaste + no cash
-  const openModal = online && terminalReady && checkedOnce && !cashOpen;
-
-  // canSubmit: por ejemplo, si tienes terminalId y online
-  const canSubmit = online && terminalReady;
+  const readyToSell = online && hydrated && terminalReady && cashOpen;
+  const openModal = online && hydrated && terminalReady && checkedOnce && !cashOpen;
+  const canSubmit = online && hydrated && terminalReady;
 
   return {
     apiStatus,
     lastPingAt,
     xTerminalId: xTerminalId ?? null,
+    hydrated,
     terminalReady,
     cashOpen,
     readyToSell,

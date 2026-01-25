@@ -10,61 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import { useProductsList } from "./hooks/useProductsList";
-import type { ProductDTO } from "@/lib/modules/catalog/products/product.dto";
-import { productService } from "@/lib/modules/catalog/products/product.service";
 import { ProductsTable } from "./ui/ProductsTable";
 import { ProductDialog } from "./ui/ProductDialog";
-import { useRouter } from "next/navigation";
 import { VariantDialog } from "./ui/VariantDialog";
-
-import { notify } from "@/lib/notify/notify";
-import { isApiHttpError } from "@/lib/api/envelope"; // ✅ recomendado (un solo lugar)
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useProductsScreen } from "./hooks/useProductsScreen";
 
 export function ProductsScreen() {
-  const router = useRouter();
-  const list = useProductsList({ debounceMs: 300 });
-
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<ProductDTO | null>(null);
-
-  const [variantDlgOpen, setVariantDlgOpen] = React.useState(false);
-  const [variantProductId, setVariantProductId] = React.useState<string | null>(null);
-
-  async function onDelete(id: string) {
-    const ok = window.confirm("Eliminar producto (solo si NO tiene variants). ¿Continuar?");
-    if (!ok) return;
-
-    try {
-      await productService.remove(id);
-      notify.success({ title: "Eliminado", description: "Producto eliminado correctamente." });
-      await list.refresh();
-    } catch (e: unknown) {
-      if (isApiHttpError(e)) {
-        // 409 = conflicto de negocio (ej: tiene variantes)
-        if (e.status === 409) {
-          // si tu backend manda code específico, úsalo; si no, solo el status
-          if (e.code === "PRODUCT_HAS_VARIANTS") {
-            notify.warning({
-              title: "No se puede eliminar",
-              description: "Este producto tiene variantes. Elimina las variantes primero e intenta de nuevo.",
-            });
-            return;
-          }
-
-          notify.warning({ title: "No se puede eliminar", description: e.message });
-          return;
-        }
-
-        // resto = error real
-        notify.error({ title: "Error", description: e.message });
-        return;
-      }
-
-      const msg = e instanceof Error ? e.message : "No se pudo eliminar el producto.";
-      notify.error({ title: "Error", description: msg });
-    }
-  }
+  const vm = useProductsScreen();
 
   return (
     <div className="space-y-4">
@@ -75,18 +28,12 @@ export function ProductsScreen() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => void list.refresh()} disabled={list.loading}>
+          <Button variant="secondary" onClick={() => void vm.list.refresh()} disabled={vm.list.loading}>
             <RefreshCw className="mr-2 size-4" />
             Refrescar
           </Button>
 
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setDialogOpen(true);
-            }}
-            variant="outline"
-          >
+          <Button onClick={vm.openCreate} variant="outline">
             <Plus className="mr-2 size-4" />
             Nuevo
           </Button>
@@ -99,39 +46,37 @@ export function ProductsScreen() {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {list.error && (
+          {vm.list.error && (
             <Alert>
-              <AlertDescription>{list.error}</AlertDescription>
+              <AlertDescription>{vm.list.error}</AlertDescription>
             </Alert>
           )}
 
           <div className="flex gap-2">
             <Input
-              value={list.search}
-              onChange={(e) => list.setSearch(e.target.value)}
+              value={vm.list.search}
+              onChange={(e) => vm.list.setSearch(e.target.value)}
               placeholder="Buscar por name/barcode/sku… (debounce 300ms)"
             />
-            <Button variant="outline" onClick={() => void list.refresh()} disabled={list.loading}>
-              Aplicar
+            <Button variant="outline" onClick={() => void vm.list.refresh()} disabled={vm.list.loading}>
+              Buscar
             </Button>
           </div>
 
           <ProductsTable
-            rows={list.rows}
-            loading={list.loading}
-            hasMore={list.hasMore}
-            loadMore={() => void list.loadMore()}
-            onOpen={(p) => router.push(`/admin/products/${p.id}`)}
-            onEdit={(p) => {
-              setEditing(p);
-              setDialogOpen(true);
-            }}
-            onDelete={onDelete}
+            rows={vm.list.rows}
+            loading={vm.list.loading}
+            hasMore={vm.list.hasMore}
+            loadMore={() => void vm.list.loadMore()}
+            selectedId={vm.editing?.id ?? null}
+            onOpen={vm.onOpenProduct}
+            onEdit={vm.openEdit}
+            onDelete={vm.onDelete}
           />
 
           <div className="text-xs text-muted-foreground">
             Tip: click en un producto para abrir detalle.{" "}
-            <Link className="underline" href="/catalog/products">
+            <Link className="underline" href="/admin/products">
               /catalog/products
             </Link>
           </div>
@@ -139,37 +84,34 @@ export function ProductsScreen() {
       </Card>
 
       <ProductDialog
-        open={dialogOpen}
-        onOpenChange={(v) => {
-          setDialogOpen(v);
-          if (!v) setEditing(null);
-        }}
-        initial={editing}
-        onSaved={async (productId) => {
-          setDialogOpen(false);
-          setEditing(null);
-          await list.refresh();
-
-          setVariantProductId(productId);
-          setVariantDlgOpen(true);
-
-          router.push(`/admin/products/${productId}`);
-        }}
+        open={vm.dialogOpen}
+        onOpenChange={vm.onOpenChangeProductDialog}
+        initial={vm.editing}
+        onSaved={vm.onSavedProduct}
       />
 
       <VariantDialog
-        open={variantDlgOpen}
+        open={vm.variantDlgOpen}
         mode="create"
-        productId={variantProductId ?? ""}
+        productId={vm.variantProductId ?? ""}
         initial={null}
-        onOpenChange={(v) => {
-          setVariantDlgOpen(v);
-          if (!v) setVariantProductId(null);
-        }}
-        onSaved={async () => {
-          await list.refresh();
-          if (variantProductId) router.push(`/admin/products/${variantProductId}`);
-        }}
+        onOpenChange={vm.onOpenChangeVariantDialog}
+        onSaved={vm.onSavedVariant}
+      />
+
+      <ConfirmDialog
+        open={!!vm.confirmDelete}
+        onOpenChange={(v) => !v && vm.onCancelDelete()}
+        title="Eliminar producto"
+        description={
+          vm.confirmDelete
+            ? `Eliminar “${vm.confirmDelete.name}” de forma permanente. Solo si NO tiene variantes. ¿Deseas continuar?`
+            : undefined
+        }
+        confirmText="Eliminar"
+        destructive
+        busy={vm.deleting}
+        onConfirm={vm.onConfirmDelete}
       />
     </div>
   );

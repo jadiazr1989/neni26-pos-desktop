@@ -16,8 +16,8 @@ export function useInventoryPreview() {
 
     try {
       const res = await inventoryService.previewAdjustment({ reason: input.reason, lines: input.lines });
-      setRows(res.rows);
-      return res.rows;
+      setRows(res.lines);
+      return res.lines;
     } catch (e: unknown) {
       setRows(null);
       setError(e instanceof Error ? e.message : "No se pudo previsualizar.");

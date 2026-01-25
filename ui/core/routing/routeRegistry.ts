@@ -5,7 +5,7 @@ export enum UserRole {
   CASHIER = "CASHIER",
 }
 
-export type RouteGroup = "public" | "boot" | "admin" | "pos";
+export type RouteGroup = "public" | "admin" | "pos";
 
 export type RouteMeta = {
   id: string;
@@ -28,20 +28,12 @@ export const ROUTES = {
     requiresCashOpen: false,
     rolesAllowed: null,
   },
-  boot: {
-    id: "boot",
-    path: "/boot",
-    group: "boot",
-    requiresAuth: true,
-    requiresTerminal: false,
-    requiresCashOpen: false,
-    rolesAllowed: null,
-  },
+  
 
   // ADMIN
   setup: {
     id: "setup",
-    path: "/admin/setup",
+    path: "/admin/dashboard",
     group: "admin",
     requiresAuth: true,
     requiresTerminal: false,
@@ -53,7 +45,7 @@ export const ROUTES = {
     path: "/admin/device",
     group: "admin",
     requiresAuth: true,
-    requiresTerminal: false,
+    requiresTerminal: true,
     requiresCashOpen: false,
     rolesAllowed: [UserRole.ADMIN] as UserRole[],
   },
@@ -62,7 +54,7 @@ export const ROUTES = {
     path: "/admin/inventory",
     group: "admin",
     requiresAuth: true,
-    requiresTerminal: false,
+    requiresTerminal: true,
     requiresCashOpen: false,
     rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
   },
@@ -71,7 +63,7 @@ export const ROUTES = {
     path: "/admin/purchases",
     group: "admin",
     requiresAuth: true,
-    requiresTerminal: false,
+    requiresTerminal: true,
     requiresCashOpen: false,
     rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
   },
@@ -98,7 +90,7 @@ export const ROUTES = {
     path: "/admin/settings",
     group: "admin",
     requiresAuth: true,
-    requiresTerminal: false,
+    requiresTerminal: true,
     requiresCashOpen: false,
     rolesAllowed: [UserRole.ADMIN] as UserRole[],
   },
@@ -110,6 +102,15 @@ export const ROUTES = {
     group: "admin",
     requiresAuth: true,
     requiresTerminal: false,
+    requiresCashOpen: false,
+    rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
+  },
+  adminWarehouses: {
+    id: "adminWarehouses",
+    path: "/admin/warehouses",
+    group: "admin",
+    requiresAuth: true,
+    requiresTerminal: true,
     requiresCashOpen: false,
     rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
   },

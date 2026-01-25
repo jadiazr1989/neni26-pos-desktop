@@ -1,7 +1,6 @@
 // src/lib/api/apiClient.ts
 import { ApiHttpError, type ApiEnvelope } from "./envelope";
-import { getStorage } from "@/core/storage/storage";
-import { storageKeys } from "@/core/storage/storageKeys";
+import { getTerminalIdForRequests } from "@/core/terminal/terminalResolver";
 
 const DEFAULT_API = "http://localhost:4000";
 
@@ -13,14 +12,9 @@ type JsonInit = {
   body?: unknown;
 };
 
-
 function resolveBaseUrl(): string {
   if (typeof window === "undefined") {
-    return (
-      process.env.API_BASE_URL ??
-      process.env.NEXT_PUBLIC_API_BASE_URL ??
-      DEFAULT_API
-    );
+    return process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API;
   }
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API;
 }
@@ -28,10 +22,9 @@ function resolveBaseUrl(): string {
 async function buildHeaders(init?: { headers?: HeadersInit }): Promise<Headers> {
   const h = new Headers(init?.headers);
 
-  const storage = getStorage();
-  const xTerminalId = await storage.get(storageKeys.xTerminalId);
-  if (xTerminalId && !h.has("x-terminal-id")) {
-    h.set("x-terminal-id", xTerminalId);
+  const terminalId = getTerminalIdForRequests(); // ✅ ya no storage
+  if (terminalId && !h.has("x-terminal-id")) {
+    h.set("x-terminal-id", terminalId);
   }
 
   return h;
@@ -47,24 +40,17 @@ async function safeJson<T>(res: Response): Promise<T | null> {
   }
 }
 
-function toHttpError(
-  res: Response,
-  env: ApiEnvelope<unknown> | null
-): ApiHttpError {
-  
+function toHttpError(res: Response, env: ApiEnvelope<unknown> | null): ApiHttpError {
   if (env && env.ok === false) {
-    const message =
-    env?.error?.message ??
-    `HTTP ${res.status}`;
+    const message = env.error.message ?? `HTTP ${res.status}`;
     return new ApiHttpError({
-      message: message,
+      message,
       status: res.status,
       code: env.error.code,
       reason: env.error.reason,
       requestId: env.error.requestId,
     });
   }
-  
 
   return new ApiHttpError({
     message: `HTTP ${res.status} ${res.statusText || ""}`.trim(),
@@ -72,34 +58,30 @@ function toHttpError(
   });
 }
 
-
 export class ApiClient {
   private readonly baseUrl = resolveBaseUrl();
 
   async json<T>(path: string, init: JsonInit = {}): Promise<T> {
     const headers = await buildHeaders({ headers: init.headers });
-    if (!headers.has("Content-Type")) {
+    const method = init.method ?? "GET";
+    const hasBody = init.body !== undefined;
+
+    // ✅ solo set Content-Type cuando hay body
+    if (hasBody && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
 
     const res = await fetch(`${this.baseUrl}${path}`, {
-      method: init.method ?? "GET",
+      method,
       headers,
       credentials: "include",
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      body: hasBody ? JSON.stringify(init.body) : undefined,
     });
 
     const env = await safeJson<ApiEnvelope<T>>(res);
 
-    if (!res.ok || (env !== null && env.ok === false)) {
-      throw toHttpError(res, env);
-    }
-    if (!env) {
-      throw new ApiHttpError({
-        message: "Invalid JSON envelope",
-        status: res.status,
-      });
-    }
+    if (!res.ok || (env !== null && env.ok === false)) throw toHttpError(res, env);
+    if (!env) throw new ApiHttpError({ message: "Invalid JSON envelope", status: res.status });
 
     return env.data;
   }
@@ -109,28 +91,24 @@ export class ApiClient {
     init: JsonInit = {}
   ): Promise<{ data: T; headers: Headers }> {
     const headers = await buildHeaders({ headers: init.headers });
-    if (!headers.has("Content-Type")) {
+    const method = init.method ?? "GET";
+    const hasBody = init.body !== undefined;
+
+    if (hasBody && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
 
     const res = await fetch(`${this.baseUrl}${path}`, {
-      method: init.method ?? "GET",
+      method,
       headers,
       credentials: "include",
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      body: hasBody ? JSON.stringify(init.body) : undefined,
     });
 
     const env = await safeJson<ApiEnvelope<T>>(res);
 
-    if (!res.ok || (env !== null && env.ok === false)) {
-      throw toHttpError(res, env);
-    }
-    if (!env) {
-      throw new ApiHttpError({
-        message: "Invalid JSON envelope",
-        status: res.status,
-      });
-    }
+    if (!res.ok || (env !== null && env.ok === false)) throw toHttpError(res, env);
+    if (!env) throw new ApiHttpError({ message: "Invalid JSON envelope", status: res.status });
 
     return { data: env.data, headers: res.headers };
   }
@@ -141,7 +119,6 @@ export class ApiClient {
     init: { method?: HttpMethod; headers?: HeadersInit } = {}
   ): Promise<T> {
     const headers = await buildHeaders({ headers: init.headers });
-    // ❌ NO Content-Type aquí
 
     const res = await fetch(`${this.baseUrl}${path}`, {
       method: init.method ?? "POST",
@@ -152,15 +129,8 @@ export class ApiClient {
 
     const env = await safeJson<ApiEnvelope<T>>(res);
 
-    if (!res.ok || (env !== null && env.ok === false)) {
-      throw toHttpError(res, env);
-    }
-    if (!env) {
-      throw new ApiHttpError({
-        message: "Invalid JSON envelope",
-        status: res.status,
-      });
-    }
+    if (!res.ok || (env !== null && env.ok === false)) throw toHttpError(res, env);
+    if (!env) throw new ApiHttpError({ message: "Invalid JSON envelope", status: res.status });
 
     return env.data;
   }

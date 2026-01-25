@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/server/session";
-import { PosGate, PosShell } from "@/components/features/pos/shell";
+import { PosShell } from "@/components/features/pos/shell";
 
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,6 @@ export default async function PosLayout({ children }: { children: React.ReactNod
 
   return (
     <PosShell initialUser={user}>
-      <PosGate />
       {children}
     </PosShell>
   );

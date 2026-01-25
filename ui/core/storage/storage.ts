@@ -1,18 +1,23 @@
-// core/storage/storage.ts
+// src/core/storage/storage.ts
 import type { StoragePort } from "./storagePort";
-import { ElectronStoreAdapter } from "./electronStore.adapter";
 import { LocalStorageAdapter } from "./localStorageAdapter";
+import { HybridStorageAdapter } from "./hybridStorageAdapter";
+import { ElectronStoreAdapter } from "./electronStore.adapter";
 
-function isElectronRenderer(): boolean {
-  if (typeof window === "undefined") return false;
-  // @ts-expect-error bridge
-  return Boolean(window.pos?.storeGet && window.pos?.storeSet && window.pos?.storeRemove);
-}
-
-let cached: StoragePort | null = null;
+let singleton: StoragePort | null = null;
 
 export function getStorage(): StoragePort {
-  if (cached) return cached;
-  cached = isElectronRenderer() ? new ElectronStoreAdapter() : new LocalStorageAdapter();
-  return cached;
+  if (singleton) return singleton;
+
+  const local = new LocalStorageAdapter();
+  const electron = new ElectronStoreAdapter();
+
+  // ✅ híbrido: si pos no está listo al inicio, igual lee de localStorage
+  singleton = new HybridStorageAdapter(
+    electron,
+    local,
+    () => ElectronStoreAdapter.isReady()
+  );
+
+  return singleton;
 }

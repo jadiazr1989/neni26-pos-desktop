@@ -8,125 +8,14 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import type { CategoryDTO } from "@/lib/modules/catalog/categories/category.dto";
-import { categoryService } from "@/lib/modules/catalog/categories/category.service";
-import { useCategoryTree } from "./hooks/useCategoryTree";
 import { CategoriesTreeTable } from "./ui/CategoriesTreeTable";
 import { CategoryDialog } from "./ui/CategoryDialog";
 import { CategoriesNavHeader } from "./ui/CategoriesNavHeader";
-import { ApiHttpError } from "@/lib/api.errors";
-import { notify } from "@/lib/notify/notify";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useCategoriesScreen } from "./hooks/useCategoriesScreen";
 
 export function CategoriesScreen() {
-  const tree = useCategoryTree({ debounceMs: 300 });
-
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [dialogMode, setDialogMode] = React.useState<"create" | "edit">("create");
-  const [selected, setSelected] = React.useState<CategoryDTO | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
-
-  const isSearching = tree.search.trim().length > 0;
-
-  const crumbs = React.useMemo(
-    () => (isSearching ? [{ id: null, label: "Resultados" }] : tree.breadcrumbs),
-    [isSearching, tree.breadcrumbs]
-  );
-
-  async function confirmDelete() {
-    if (!confirmDeleteId) return;
-
-    try {
-      await categoryService.remove(confirmDeleteId);
-      notify.success({
-        title: "Categoría eliminada",
-        description: "La categoría se eliminó correctamente.",
-      });
-      await tree.refresh();
-    } catch (e: unknown) {
-      if (e instanceof ApiHttpError) {
-        if (e.status === 409) {
-          notify.warning({
-            title: "No se puede eliminar",
-            description:
-              "Esta categoría tiene subcategorías o productos asociados.",
-          });
-          return;
-        }
-        notify.error({ title: "Error", description: e.message });
-        return;
-      }
-
-      notify.error({
-        title: "Error inesperado",
-        description: "No se pudo eliminar la categoría.",
-      });
-    } finally {
-      setConfirmDeleteId(null);
-    }
-  }
-
-  async function onSubmit(payload: { name: string; slug: string; parentId: string | null; imageFile: File | null }) {
-    tree.setError(null);
-
-    try {
-      if (dialogMode === "create") {
-        const finalParentId = payload.parentId ?? tree.parentId;
-        const id = await categoryService.create({
-          name: payload.name,
-          slug: payload.slug,
-          parentId: finalParentId,
-        });
-
-        if (payload.imageFile) {
-          await categoryService.uploadImage(id, payload.imageFile);
-        }
-
-        notify.success({
-          title: "Categoría creada",
-          description: payload.name,
-        });
-      } else if (selected) {
-        await categoryService.update(selected.id, {
-          name: payload.name,
-          slug: payload.slug,
-          parentId: payload.parentId,
-        });
-
-        if (payload.imageFile) {
-          await categoryService.uploadImage(selected.id, payload.imageFile);
-        }
-
-        notify.success({
-          title: "Categoría actualizada",
-          description: payload.name,
-        });
-      }
-
-      setDialogOpen(false);
-      setSelected(null);
-      await tree.refresh();
-    } catch (e: unknown) {
-      if (e instanceof ApiHttpError) {
-        notify.warning({
-          title: "No se pudo guardar",
-          description: e.message,
-        });
-        tree.setError(e.message);
-        return;
-      }
-
-      notify.error({
-        title: "Error",
-        description: "No se pudo guardar la categoría.",
-      });
-    }
-  }
-
-  async function onDelete(id: string) {
-    setConfirmDeleteId(id);
-  }
-
+  const vm = useCategoriesScreen();
 
   return (
     <div className="space-y-4">
@@ -137,19 +26,12 @@ export function CategoriesScreen() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => void tree.refresh()} disabled={tree.loading}>
+          <Button variant="secondary" onClick={() => void vm.tree.refresh()} disabled={vm.tree.loading}>
             <RefreshCw className="mr-2 size-4" />
             Refrescar
           </Button>
 
-          <Button
-            onClick={() => {
-              setDialogMode("create");
-              setSelected(null);
-              setDialogOpen(true);
-            }}
-            variant="outline"
-          >
+          <Button onClick={vm.openCreate} variant="outline">
             <Plus className="mr-2 size-4" />
             Nueva
           </Button>
@@ -159,79 +41,68 @@ export function CategoriesScreen() {
       <Card>
         <CardHeader className="pb-2">
           <CategoriesNavHeader
-            isSearching={isSearching}
-            crumbs={crumbs}
-            resultCount={isSearching ? tree.rows.length : undefined}
-            onPickCrumb={(idx) => {
-              if (isSearching) {
-                tree.setSearch("");
-                tree.openRoot();
-                void tree.refresh();
-                return;
-              }
-              tree.goToCrumb(idx);
-            }}
-            onCloseLast={() => tree.goUp()} // ✅ AQUÍ SALE LA X
-            onExitSearch={() => {
-              tree.setSearch("");
-              tree.openRoot();
-              void tree.refresh();
-            }}
+            isSearching={vm.isSearching}
+            crumbs={vm.crumbs}
+            resultCount={vm.isSearching ? vm.tree.rows.length : undefined}
+            onPickCrumb={vm.onPickCrumb}
+            onCloseLast={vm.onCloseLast}
+            onExitSearch={vm.onExitSearch}
           />
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {tree.error && (
+          {vm.tree.error && (
             <Alert>
-              <AlertDescription>{tree.error}</AlertDescription>
+              <AlertDescription>{vm.tree.error}</AlertDescription>
             </Alert>
           )}
 
           <div className="flex gap-2">
             <Input
-              value={tree.search}
-              onChange={(e) => tree.setSearch(e.target.value)}
+              value={vm.tree.search}
+              onChange={(e) => vm.tree.setSearch(e.target.value)}
               placeholder="Buscar por nombre/slug… (debounce 300ms)"
             />
-            <Button variant="outline" onClick={() => void tree.refresh()} disabled={tree.loading}>
-              Aplicar
+            <Button variant="outline" onClick={() => void vm.tree.refresh()} disabled={vm.tree.loading}>
+              Buscar
             </Button>
           </div>
 
           <CategoriesTreeTable
-            rows={tree.rows}
-            loading={tree.loading}
-            hasMore={tree.hasMore}
-            loadMore={() => void tree.loadMore()}
-            onOpen={(c) => tree.openChild(c)}
-            onEdit={(c) => {
-              setDialogMode("edit");
-              setSelected(c);
-              setDialogOpen(true);
-            }}
-            onDelete={onDelete}
+            rows={vm.tree.rows}
+            loading={vm.tree.loading}
+            hasMore={vm.tree.hasMore}
+            loadMore={() => void vm.tree.loadMore()}
+            onOpen={(c) => vm.tree.openChild(c)}
+            onEdit={vm.openEdit}
+            onDelete={vm.onDelete}
           />
         </CardContent>
       </Card>
 
       <CategoryDialog
-        open={dialogOpen}
-        mode={dialogMode}
-        initial={selected}
-        loading={tree.loading}
-        onOpenChange={setDialogOpen}
-        onSubmit={onSubmit}
+        open={vm.dialogOpen}
+        mode={vm.dialogMode}
+        initial={vm.selected}
+        loading={vm.tree.loading}
+        onOpenChange={vm.onOpenChangeDialog}
+        onSubmit={vm.onSubmit}
       />
 
       <ConfirmDialog
-        open={!!confirmDeleteId}
-        onOpenChange={(v) => !v && setConfirmDeleteId(null)}
+        open={!!vm.confirmDelete}
+        onOpenChange={(v) => !v && vm.onCancelDelete()}
         title="Eliminar categoría"
-        description="Esta acción eliminará la categoría de forma permanente. ¿Deseas continuar?"
+        description={
+          vm.confirmDelete
+            ? `Eliminar “${vm.confirmDelete.name}” de forma permanente. ¿Deseas continuar?`
+            : undefined
+        }
         confirmText="Eliminar"
-        onConfirm={confirmDelete}
+        destructive
+        busy={vm.deleting}
+        onConfirm={vm.onConfirmDelete}
       />
-
     </div>
   );
 }

@@ -4,18 +4,19 @@ import { ServiceProvider } from "@/di";
 import { useCashStore, useTerminalStore } from "@/stores";
 import { useFavorites } from "@/stores/favorites.store";
 import { useEffect, useRef } from "react";
-import { Toaster } from "@/components/ui/sonner"; // ✅ este
+import { Toaster } from "@/components/ui/sonner";
 
 export default function ClientProviders({ children }: { readonly children: React.ReactNode }) {
-  const didHydrate = useRef(false);
+  const didHydrateRef = useRef(false);
 
   useEffect(() => {
-    if (didHydrate.current) return;
-    didHydrate.current = true;
+    if (didHydrateRef.current) return;
+    didHydrateRef.current = true;
 
-    void useFavorites.getState().hydrate();
+    // ✅ orden recomendado: terminal primero
     void useTerminalStore.getState().hydrate();
     void useCashStore.getState().hydrate();
+    void useFavorites.getState().hydrate();
   }, []);
 
   return (

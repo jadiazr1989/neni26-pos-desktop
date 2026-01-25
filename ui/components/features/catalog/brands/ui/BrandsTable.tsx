@@ -14,13 +14,20 @@ export function BrandsTable(props: {
   loadMore: () => void;
 
   onEdit: (b: BrandDTO) => void;
-  onDelete: (id: string) => Promise<void>;
+
+  // ✅ ahora pasa name también
+  onDelete: (id: string, name: string) => Promise<void> | void;
 
   height?: number;
 }) {
   const columns = React.useMemo<Array<VirtualColumnDef<BrandDTO>>>(() => {
     return [
-      { key: "img", header: "Img", className: "col-span-1", render: (b) => <EntityAvatar src={b.imageUrl} alt={b.name} size={36} /> },
+      {
+        key: "img",
+        header: "Img",
+        className: "col-span-1",
+        render: (b) => <EntityAvatar src={b.imageUrl} alt={b.name} size={36} />,
+      },
       { key: "name", header: "Nombre", className: "col-span-5 font-medium truncate", render: (b) => b.name },
       { key: "slug", header: "Slug", className: "col-span-5 text-sm text-muted-foreground truncate", render: (b) => b.slug },
       {
@@ -30,8 +37,14 @@ export function BrandsTable(props: {
         render: (b) => (
           <RowActions
             onEdit={() => props.onEdit(b)}
-            onDelete={() => props.onDelete(b.id)}
-            deleteConfirm={{ title: "Eliminar marca", message: "Esto es hard delete. ¿Continuar?" }}
+            onDelete={() => props.onDelete(b.id, b.name)}
+            deleteConfirm={{
+              title: "Confirmar",
+              message: "Esta acción es permanente. Si tiene productos asociados, no se podrá eliminar.",
+              confirmText: "Continuar",
+              cancelText: "Cancelar",
+              destructive: false, // ✅ paso 1 NO rojo
+            }}
             disabled={props.loading}
           />
         ),

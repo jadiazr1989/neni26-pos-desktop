@@ -1,37 +1,56 @@
-// src/modules/catalog/products/ui/ui/VariantsTable.tsx
+// src/modules/catalog/products/ui/variants/VariantsTable.tsx
 "use client";
 
 import * as React from "react";
-import { RowActions } from "@/components/shared/RowActions";
 import { VirtualDataTable, type VirtualColumnDef } from "@/components/shared/VirtualDataTable";
 import type { ProductVariantDTO } from "@/lib/modules/catalog/products/product.dto";
-import { productService } from "@/lib/modules/catalog/products/product.service";
 import { EntityAvatar } from "@/components/shared/EntityAvatar";
+import { Button } from "@/components/ui/button";
+import { Eye, EyeOff, Pencil } from "lucide-react";
+import { displayVariantTitle } from "@/lib/utils";
 
 export function VariantsTable(props: {
   rows: ProductVariantDTO[];
   loading?: boolean;
+
   onEdit: (v: ProductVariantDTO) => void;
-  onChanged: () => Promise<void> | void;
+
+  // Screen decide confirm + ejecuta la acción
+  onToggleActiveRequest: (v: ProductVariantDTO, nextActive: boolean) => void;
+
   height?: number;
 }) {
+  const disabled = Boolean(props.loading);
+
   const cols = React.useMemo<Array<VirtualColumnDef<ProductVariantDTO>>>(() => {
     return [
       {
         key: "img",
         header: "Img",
         className: "col-span-1",
-        render: (c) => <EntityAvatar src={c.imageUrl} alt={c.title ?? "-"} size={36} />,
+        render: (v) => <EntityAvatar src={v.imageUrl} alt={v.title ?? v.sku ?? "-"} size={36} />,
       },
       {
         key: "sku",
         header: "SKU",
-        className: "col-span-3",
+        className: "col-span-2",
         render: (v) => (
           <div className="min-w-0">
             <div className="font-medium truncate">{v.sku}</div>
-            <div className="text-xs text-muted-foreground truncate">Barcode: {v.barcode ?? "—"}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              Barcode: {v.barcode ?? "—"}
+            </div>
           </div>
+        ),
+      },
+      {
+        key: "title",
+        header: "Título",
+        className: "col-span-2",
+        render: (r) => (
+          <span className="text-sm truncate block">
+            {displayVariantTitle(r.title, r.sku)}
+          </span>
         ),
       },
       {
@@ -48,9 +67,20 @@ export function VariantsTable(props: {
       },
       {
         key: "active",
-        header: "Activa",
-        className: "col-span-2 text-xs text-muted-foreground",
-        render: (v) => (v.isActive ? "Sí" : "No"),
+        header: "Estado",
+        className: "col-span-1",
+        render: (v) => (
+          <div className="flex items-center justify-center">
+            <span
+              className={[
+                "inline-block rounded-full",
+                "size-3.5",
+                v.isActive ? "bg-emerald-500" : "bg-rose-500",
+              ].join(" ")}
+              title={v.isActive ? "Activa" : "Desactivada"}
+            />
+          </div>
+        ),
       },
       {
         key: "actions",
@@ -58,24 +88,41 @@ export function VariantsTable(props: {
         className: "col-span-2",
         render: (v) => (
           <div className="flex justify-end gap-2">
-            <button
-              className="text-xs underline"
-              onClick={() => void (async () => {
-                await productService.setVariantActive(v.id, !v.isActive);
-                await props.onChanged();
-              })()}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => props.onToggleActiveRequest(v, !v.isActive)}
+              disabled={disabled}
+              title={v.isActive ? "Ocultar variante" : "Activar variante"}
             >
-              {v.isActive ? "Desactivar" : "Activar"}
-            </button>
+              {v.isActive ? (
+                <>
+                  <EyeOff className="mr-1 size-4" />
+                  Ocultar
+                </>
+              ) : (
+                <>
+                  <Eye className="mr-1 size-4" />
+                  Activar
+                </>
+              )}
+            </Button>
 
-            <RowActions onEdit={() => props.onEdit(v)} disabled={Boolean(props.loading)} />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => props.onEdit(v)}
+              disabled={disabled}
+              title="Editar variante"
+            >
+              <Pencil className="size-4" />
+            </Button>
           </div>
         ),
       },
     ];
-  }, [props]);
+  }, [disabled, props]);
 
-  // Nota: variantes ya vienen dentro del producto, no hacemos paging aquí (por ahora).
   return (
     <VirtualDataTable<ProductVariantDTO>
       rows={props.rows}
@@ -84,9 +131,10 @@ export function VariantsTable(props: {
       height={props.height ?? 420}
       estimateSize={58}
       overscan={10}
-      isLoading={props.loading}
+      isLoading={disabled}
       hasMore={false}
-      empty={<span className="text-sm text-muted-foreground">Este producto no tiene variantes aún.</span>}
+      getRowClassName={(row) => (!row.isActive ? "opacity-70" : "")}
+      empty={<span className="text-sm text-muted-foreground">No hay variantes con ese filtro/búsqueda.</span>}
     />
   );
 }

@@ -1,6 +1,36 @@
 import { ProductVariantDTO } from "../catalog/products/product.dto";
 
-// src/lib/modules/inventory/inventory.dto.ts
+
+type ProdutcParent = { id: string; name: string };
+
+// ✅ Esto es lo que VIENE del backend en warehouse stock
+export type WarehouseStockRowDTO = {
+  warehouseId: string;
+  variantId: string;              // ✅ viene como alias en tu API
+  quantity: number;
+  reservedQuantity: number;
+  updatedAt?: string;
+  variant: {
+    id: string;
+    sku: string;
+    barcode: string | null;
+    title: string | null;
+    imageUrl: string | null;
+    isActive: boolean;
+    product: ProdutcParent;
+  };
+};
+
+export type WarehouseStockRowUI = {
+  variantId: string;              // interno (NO se muestra)
+  sku: string;
+  title: string | null;
+  qty: number;
+  isActive: boolean;
+  imageUrl: string | null;
+  productName: string | null;     // ✅ para UI friendly
+};
+
 export type InventoryAdjustLineInput = {
   variantId: string;
   qtyDelta: number;
@@ -13,14 +43,6 @@ export type InventoryAdjustInput = {
   lines: InventoryAdjustLineInput[];
 };
 
-// ✅ acción
-export type InventoryAdjustResponse = {
-  referenceType: "ADJUSTMENT" | string;
-  adjustmentId: string;
-  lines: Array<{ variantId: string; beforeQty: number; afterQty: number; qtyDelta: number }>;
-};
-
-// ✅ lectura (preview -> rows)
 export type InventoryPreviewRowDTO = {
   variantId: string;
   beforeQty: number;
@@ -29,8 +51,27 @@ export type InventoryPreviewRowDTO = {
   notes?: string | null;
 };
 
+export type InventoryPreviewLineDTO = {
+  variantId: string;
+  beforeQty: number;
+  afterQty: number;
+  qtyDelta: number;
+  notes?: string | null;
+};
+
 export type InventoryPreviewResponse = {
-  rows: InventoryPreviewRowDTO[];
+  warehouseId: string;
+  terminalId: string | null;
+  reason: string | null;
+  lines: InventoryPreviewLineDTO[];
+};
+
+
+// ✅ acción
+export type InventoryAdjustResponse = {
+  referenceType: "ADJUSTMENT" | string;
+  adjustmentId: string;
+  lines: Array<{ variantId: string; beforeQty: number; afterQty: number; qtyDelta: number }>;
 };
 
 export type InventoryAdjustmentRequestResponse = {
@@ -46,14 +87,8 @@ export type InventoryAdjustmentReviewResponse = {
   applied?: { referenceId: string } | null;
 };
 
-// ✅ lecturas -> rows
-export type WarehouseStockRowDTO = {
-  warehouseId: string;
-  productVariantId: string;
-  quantity: number;
-  reservedQuantity: number;
-  updatedAt?: string;
-};
+
+
 
 export type GetWarehouseStockResponse = {
   rows: WarehouseStockRowDTO[];
@@ -110,11 +145,6 @@ export type InventoryAdjustLineUI = {
   error: string | null;
 };
 
-// src/modules/inventory/ui/types.ts
-export type WarehouseStockRowUI = {
-  variantId: string;
-  sku: string;
-  title: string | null;
-  qty: number;
-  isActive: boolean;
-};
+
+// src/lib/modules/inventory/inventory.dto.ts
+

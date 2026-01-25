@@ -21,3 +21,33 @@ export function normalizeBarcode(s: string): string | null {
   if (!/^\d+$/.test(t)) return null;
   return t;
 }
+
+// helper (puede ir en InventoryWarehouseStockTable.tsx o en un ui/utils)
+export function displayVariantTitle(title?: string | null, sku?: string | null) {
+  const t = (title ?? "").trim();
+  if (!t) return sku ?? "—";
+  if (t.toLowerCase() === "default") return "Variante base";
+  return t;
+}
+
+
+export function displayVariantTitle2(title: string | null, sku: string) {
+  const t = (title ?? "").trim();
+  if (!t) return sku;
+  if (t.toLowerCase() === "default") return "Variante base";
+  return t;
+}
+
+export function isNonZeroIntString(s: string): boolean {
+  const t = s.trim();
+  if (!t) return false;
+  const n = Number(t);
+  return Number.isFinite(n) && Number.isInteger(n) && n !== 0;
+}
+
+// src/lib/ui/minDelay.ts
+export async function minDelay(ms: number): Promise<void> {
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+

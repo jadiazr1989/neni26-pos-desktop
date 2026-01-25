@@ -1,28 +1,71 @@
-// src/modules/inventory/ui/components/InventoryWarehouseStockTable.tsx
 "use client";
 
 import * as React from "react";
 import { VirtualDataTable, type VirtualColumnDef } from "@/components/shared/VirtualDataTable";
-import { WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
+import type { WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
+import { EntityAvatar } from "@/components/shared/EntityAvatar";
+import { displayVariantTitle } from "@/lib/utils";
 
 export function InventoryWarehouseStockTable(props: {
   rows: WarehouseStockRowUI[];
   loading: boolean;
   hasMore: boolean;
   loadMore: () => void;
-  onPickVariant: (variantId: string) => void;
+
+  onPickRow: (row: WarehouseStockRowUI) => void;
+
+  selectedVariantId?: string | null;
   height?: number;
 }) {
   const columns = React.useMemo<Array<VirtualColumnDef<WarehouseStockRowUI>>>(() => {
     return [
-      { key: "sku", header: "SKU", className: "col-span-3 font-medium truncate", render: (r) => r.sku },
-      { key: "title", header: "Título", className: "col-span-6 text-sm truncate", render: (r) => r.title ?? "—" },
-      { key: "qty", header: "Stock", className: "col-span-2 text-right tabular-nums", render: (r) => String(r.qty) },
+      {
+        key: "img",
+        header: "",
+        className: "col-span-1",
+        render: (v) => <EntityAvatar src={v.imageUrl ?? undefined} alt={v.title ?? v.sku ?? "-"} size={36} />,
+      },
+      {
+        key: "sku",
+        header: "SKU",
+        className: "col-span-2",
+        render: (r) => <span className="font-medium truncate block">{r.sku}</span>,
+      },
+      {
+        key: "title",
+        header: "Producto",
+        className: "col-span-6",
+        render: (r) => (
+          <div className="min-w-0">
+            <span className="text-sm truncate block">{displayVariantTitle(r.title, r.sku)}</span>
+            {r.productName ? (
+              <span className="text-xs text-muted-foreground truncate block">{r.productName}</span>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        key: "qty",
+        header: <span className="w-full text-right block">Stock</span>,
+        className: "col-span-2 text-right tabular-nums",
+        render: (r) => String(r.qty),
+      },
       {
         key: "active",
-        header: "Estado",
-        className: "col-span-1 text-xs text-muted-foreground text-right",
-        render: (r) => (r.isActive ? "OK" : "OFF"),
+        header: <span className="w-full text-right block">Estado</span>,
+        className: "col-span-1",
+        render: (r) => (
+          <div className="flex items-center justify-end">
+            <span
+              className={[
+                "inline-block rounded-full",
+                "size-4", // ✅ un poco más grande
+                r.isActive ? "bg-emerald-500" : "bg-rose-500",
+              ].join(" ")}
+              title={r.isActive ? "Activa" : "Desactivada"}
+            />
+          </div>
+        ),
       },
     ];
   }, []);
@@ -39,7 +82,17 @@ export function InventoryWarehouseStockTable(props: {
       hasMore={props.hasMore}
       onEndReached={props.loadMore}
       empty={<span className="text-sm text-muted-foreground">Sin inventario.</span>}
-      onRowClick={(r) => props.onPickVariant(r.variantId)}
+      onRowClick={(r) => props.onPickRow(r)}
+      getRowClassName={(r) => {
+        const selected = props.selectedVariantId && r.variantId === props.selectedVariantId;
+        return [
+          "cursor-pointer",
+          !r.isActive ? "opacity-70" : "",
+          selected ? "bg-muted/60 ring-1 ring-ring" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+      }}
     />
   );
 }

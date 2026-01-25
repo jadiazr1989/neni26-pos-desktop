@@ -12,3 +12,4 @@ export default async function RedirectPage() {
   // Renderiza un client component que decide por terminal + rol
   return <RedirectClient role={user.role} />;
 }
+       

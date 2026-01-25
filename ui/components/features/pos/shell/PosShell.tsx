@@ -12,7 +12,7 @@ import { CashOpenGateModal } from "@/components/features/pos/cash/ui/CashOpenGat
 import { usePosCashierGate } from "../cash/hooks/usePosCashierGate";
 
 import { usePosSaleStore } from "@/stores/posSale.store";
-import { PosBottomBar } from "./PosBottomBar";
+import { PosBottomBar } from "./ui/PosBottomBar";
 
 import {
   closeCashSession,

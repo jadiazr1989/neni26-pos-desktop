@@ -1,4 +1,3 @@
-// src/modules/inventory/ui/hooks/useInventoryWarehouseStockTable.ts
 "use client";
 
 import * as React from "react";
@@ -6,92 +5,108 @@ import { inventoryService } from "@/lib/modules/inventory/inventory.service";
 import type { WarehouseStockRowDTO, WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
 
 type State = {
-    rows: WarehouseStockRowUI[];
-    loading: boolean;
-    error: string | null;
-    nextCursor: string | null;
+  rows: WarehouseStockRowUI[];
+  loading: boolean;
+  error: string | null;
+  nextCursor: string | null;
 };
 
-function mapRow(dto: WarehouseStockRowDTO & { variant?: { sku?: string; title?: string | null; isActive?: boolean } | null }): WarehouseStockRowUI {
-    const sku = dto.variant?.sku ?? "—";
-    const title = dto.variant?.title ?? null;
-    const isActive = dto.variant?.isActive ?? true;
-
-    return {
-        variantId: dto.productVariantId,
-        sku,
-        title,
-        qty: Number(dto.quantity ?? 0),
-        isActive,
-    };
+function mapRow(dto: WarehouseStockRowDTO): WarehouseStockRowUI {
+  return {
+    variantId: dto.variantId, // ✅ click/adjust
+    sku: dto.variant?.sku ?? "—",
+    title: dto.variant?.title ?? null,
+    qty: Number(dto.quantity ?? 0),
+    isActive: dto.variant?.isActive ?? true,
+    imageUrl: dto.variant?.imageUrl ?? null,
+    productName: dto.variant?.product?.name ?? null,
+  };
 }
 
 function mergeUnique(prev: WarehouseStockRowUI[], next: WarehouseStockRowUI[]): WarehouseStockRowUI[] {
-    const m = new Map<string, WarehouseStockRowUI>();
-    for (const r of prev) m.set(r.variantId, r);
-    for (const r of next) m.set(r.variantId, r);
-    return Array.from(m.values());
+  const m = new Map<string, WarehouseStockRowUI>();
+  for (const r of prev) m.set(r.variantId, r);
+  for (const r of next) m.set(r.variantId, r);
+  return Array.from(m.values());
 }
+
 export function useInventoryWarehouseStockTable(params: { pageSize?: number }) {
-    const [state, setState] = React.useState<State>({
-        rows: [],
+  const pageSize = params.pageSize ?? 50;
+
+  const [state, setState] = React.useState<State>({
+    rows: [],
+    loading: false,
+    error: null,
+    nextCursor: null,
+  });
+
+  const loadFirst = React.useCallback(async () => {
+    setState({ rows: [], loading: true, error: null, nextCursor: null });
+
+    try {
+      const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor: null });
+      const uiRows = (res.rows as WarehouseStockRowDTO[]).map(mapRow);
+
+      // ✅ si backend devolvió rows pero no pudimos mapear ids (defensivo)
+      if (!uiRows.length && (res.rows as unknown[]).length) {
+        setState({
+          rows: [],
+          loading: false,
+          error: "La API no está devolviendo variantId en warehouse stock.",
+          nextCursor: res.nextCursor,
+        });
+        return;
+      }
+
+      setState({ rows: uiRows, loading: false, error: null, nextCursor: res.nextCursor });
+    } catch (e: unknown) {
+      setState((s) => ({
+        ...s,
         loading: false,
-        error: null,
-        nextCursor: null,
+        error: e instanceof Error ? e.message : "No se pudo cargar inventario.",
+      }));
+    }
+  }, [pageSize]);
+
+  const loadMore = React.useCallback(async () => {
+    let cursorToUse: string | null = null;
+
+    setState((s) => {
+      if (s.loading) return s;
+      if (!s.nextCursor) return s;
+      cursorToUse = s.nextCursor;
+      return { ...s, loading: true, error: null };
     });
 
-    const pageSize = params.pageSize ?? 50;
+    if (!cursorToUse) return;
 
-    const loadFirst = React.useCallback(async () => {
-        setState({ rows: [], loading: true, error: null, nextCursor: null });
-        try {
-            const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor: null });
+    try {
+      // ✅ aquí estaba el bug: estabas mandando cursor: null
+      const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor: cursorToUse });
+      const uiRows = (res.rows as WarehouseStockRowDTO[]).map(mapRow);
 
-            const uiRows = (res.rows as Array<
-                WarehouseStockRowDTO & { variant?: { sku?: string; title?: string | null; isActive?: boolean } | null }
-            >).map(mapRow);
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: null,
+        rows: mergeUnique(s.rows, uiRows),
+        nextCursor: res.nextCursor,
+      }));
+    } catch (e: unknown) {
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: e instanceof Error ? e.message : "No se pudo cargar más.",
+      }));
+    }
+  }, [pageSize]);
 
-            setState({ rows: uiRows, loading: false, error: null, nextCursor: res.nextCursor });
-        } catch (e: unknown) {
-            setState((s) => ({ ...s, loading: false, error: e instanceof Error ? e.message : "No se pudo cargar inventario." }));
-        }
-    }, [pageSize]);
-
-    const loadMore = React.useCallback(async () => {
-        setState((s) => {
-            if (s.loading) return s;
-            if (!s.nextCursor) return s;
-            return { ...s, loading: true, error: null };
-        });
-
-        try {
-            const cursor = state.nextCursor;
-            if (!cursor) return;
-
-            const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor });
-
-            const uiRows = (res.rows as Array<
-                WarehouseStockRowDTO & { variant?: { sku?: string; title?: string | null; isActive?: boolean } | null }
-            >).map(mapRow);
-
-            setState((s) => ({
-                ...s,
-                loading: false,
-                error: null,
-                rows: mergeUnique(s.rows, uiRows),
-                nextCursor: res.nextCursor,
-            }));
-        } catch (e: unknown) {
-            setState((s) => ({ ...s, loading: false, error: e instanceof Error ? e.message : "No se pudo cargar más." }));
-        }
-    }, [pageSize, state.nextCursor]);
-
-    return {
-        rows: state.rows,
-        loading: state.loading,
-        error: state.error,
-        hasMore: Boolean(state.nextCursor),
-        loadFirst,
-        loadMore,
-    };
+  return {
+    rows: state.rows,
+    loading: state.loading,
+    error: state.error,
+    hasMore: Boolean(state.nextCursor),
+    loadFirst,
+    loadMore,
+  };
 }

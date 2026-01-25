@@ -27,21 +27,36 @@ export function VirtualDataTable<T>(props: {
   hasMore?: boolean;
   onEndReached?: () => void;
 
-  // ✅ NUEVO
+  // row interaction
   onRowClick?: (row: T) => void;
-  getRowClassName?: (row: T) => string; // opcional por si quieres custom per-row
+  getRowClassName?: (row: T) => string;
 
   className?: string;
+
+  // ✅ opcional: sticky header (default true)
+  stickyHeader?: boolean;
 }) {
   const hasMore = props.hasMore ?? false;
   const clickable = typeof props.onRowClick === "function";
+  const sticky = props.stickyHeader ?? true;
+
+  const baseRow =
+    "grid grid-cols-12 gap-2 px-3 py-2 items-center outline-none transition-colors";
+
+  const clickableRow =
+    "cursor-pointer hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
   return (
     <div className={cn("rounded-xl border border-border overflow-hidden", props.className)}>
       {/* Header */}
-      <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/30">
+      <div
+        className={cn(
+          "grid grid-cols-12 gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/30 border-b border-border",
+          sticky && "sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-muted/60"
+        )}
+      >
         {props.columns.map((c) => (
-          <div key={c.key} className={c.className}>
+          <div key={c.key} className={cn("min-w-0", c.className)}>
             {c.header}
           </div>
         ))}
@@ -53,53 +68,60 @@ export function VirtualDataTable<T>(props: {
           {props.empty ?? <span className="text-sm text-muted-foreground">Sin datos.</span>}
         </div>
       ) : (
-        <div className="divide-y divide-border">
-          <VirtualList
-            items={props.rows}
-            height={props.height}
-            estimateSize={props.estimateSize ?? 56}
-            overscan={props.overscan ?? 10}
-            onEndReached={() => {
-              if (!props.isLoading && hasMore) props.onEndReached?.();
-            }}
-            renderRow={(row) => {
-              const key = props.rowKey(row);
+        <VirtualList
+          items={props.rows}
+          height={props.height}
+          estimateSize={props.estimateSize ?? 56}
+          overscan={props.overscan ?? 10}
+          onEndReached={() => {
+            if (!props.isLoading && hasMore) props.onEndReached?.();
+          }}
+          renderRow={(row, idx) => {
+            const key = props.rowKey(row);
 
-              return (
-                <div
-                  key={key}
-                  role={clickable ? "button" : undefined}
-                  tabIndex={clickable ? 0 : undefined}
-                  aria-disabled={clickable ? props.isLoading : undefined}
-                  className={cn(
-                    "grid grid-cols-12 gap-2 px-3 py-2 items-center outline-none",
-                    clickable &&
-                      "cursor-pointer hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                    props.isLoading && clickable && "opacity-60 pointer-events-none",
-                    props.getRowClassName?.(row)
-                  )}
-                  onClick={() => {
-                    if (!clickable || props.isLoading) return;
+            // ✅ zebra global
+            const zebra = idx % 2 === 0 ? "bg-background" : "bg-muted/10";
+
+            // ✅ per-row custom class (selected/highlight/etc.)
+            const rowCls = props.getRowClassName?.(row) ?? "";
+
+            const disabledClick = clickable && Boolean(props.isLoading);
+
+            return (
+              <div
+                key={key}
+                role={clickable ? "button" : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                aria-disabled={clickable ? props.isLoading : undefined}
+                className={cn(
+                  baseRow,
+                  zebra,
+                  "border-b border-border/60 last:border-b-0", // ✅ separación suave entre filas
+                  clickable && clickableRow,
+                  disabledClick && "opacity-60 pointer-events-none",
+                  rowCls
+                )}
+                onClick={() => {
+                  if (!clickable || props.isLoading) return;
+                  props.onRowClick?.(row);
+                }}
+                onKeyDown={(e) => {
+                  if (!clickable || props.isLoading) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
                     props.onRowClick?.(row);
-                  }}
-                  onKeyDown={(e) => {
-                    if (!clickable || props.isLoading) return;
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      props.onRowClick?.(row);
-                    }
-                  }}
-                >
-                  {props.columns.map((c) => (
-                    <div key={c.key} className={c.className}>
-                      {c.render(row)}
-                    </div>
-                  ))}
-                </div>
-              );
-            }}
-          />
-        </div>
+                  }
+                }}
+              >
+                {props.columns.map((c) => (
+                  <div key={c.key} className={cn("min-w-0", c.className)}>
+                    {c.render(row)}
+                  </div>
+                ))}
+              </div>
+            );
+          }}
+        />
       )}
 
       {/* Footer */}

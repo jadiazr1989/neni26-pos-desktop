@@ -16,7 +16,7 @@ export function CategoriesTreeTable(props: {
 
   onOpen: (c: CategoryDTO) => void;     // navegar a hijos
   onEdit: (c: CategoryDTO) => void;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string, name: string) => Promise<void>;
 
   height?: number;
 }) {
@@ -62,15 +62,14 @@ export function CategoriesTreeTable(props: {
         render: (c) => (
           <RowActions
             onEdit={() => props.onEdit(c)}
-            onDelete={() => props.onDelete(c.id)}
+            onDelete={() => props.onDelete(c.id, c.name)}
             deleteConfirm={{
-              title: "Eliminar categoría",
+              title: "Confirmar",
               message: "Esta acción es permanente. Si tiene hijos o productos, no se podrá eliminar.",
-              confirmText: "Eliminar",
+              confirmText: "Continuar",
               cancelText: "Cancelar",
-              destructive: true,
+              destructive: false,
             }}
-
             disabled={props.loading}
           />
         ),

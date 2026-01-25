@@ -4,7 +4,7 @@ import { LoginScreen } from "@/components/features";
 import { useLoginForm } from "@/components/features/login/hooks";
 
 export default function Page() {
-  // ✅ Después de login, NO vamos a /boot directo. Vamos a /redirect.
+  
   const { form, setField, loading, error, submit } = useLoginForm("/redirect");
 
   return (
