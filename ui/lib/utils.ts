@@ -51,3 +51,18 @@ export async function minDelay(ms: number): Promise<void> {
 }
 
 
+export function formatMoneyBaseMinor(v: number) {
+  // asumiendo CUP minor = CUP entero (según tu comentario: 1 = 1 CUP)
+  return new Intl.NumberFormat("es-CU", {
+    style: "currency",
+    currency: "CUP",
+    maximumFractionDigits: 0,
+  }).format(v);
+}
+
+export function formatIsoShort(iso: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("es-ES", { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}

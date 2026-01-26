@@ -10,10 +10,33 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { useDeviceScreen } from "./hooks/useDeviceScreen";
 
+import { AsyncComboboxSingle, type ComboboxOption } from "@/components/shared/AsyncComboboxSingle";
+
 export function DeviceScreen() {
   const vm = useDeviceScreen();
 
   const terminalReady = Boolean(vm.xTerminalId);
+
+  // ✅ options (label pro: Name (CODE) · WH: xxxx…)
+  const options = React.useMemo<ComboboxOption[]>(() => {
+    return vm.terminals.map((t) => ({
+      value: t.id,
+      label: `${t.name}${t.code ? ` (${t.code})` : ""} · WH: ${t.warehouseId.slice(0, 8)}`,
+    }));
+  }, [vm.terminals]);
+
+  // ✅ local search
+  const [search, setSearch] = React.useState("");
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((x) => x.label.toLowerCase().includes(q));
+  }, [options, search]);
+
+  const selectedLabel = React.useMemo(() => {
+    if (!vm.selectedId) return null;
+    return options.find((o) => o.value === vm.selectedId)?.label ?? null;
+  }, [options, vm.selectedId]);
 
   return (
     <div className="space-y-4">
@@ -21,7 +44,8 @@ export function DeviceScreen() {
         <div className="space-y-1">
           <h1 className="text-xl font-semibold">Dispositivo</h1>
           <p className="text-sm text-muted-foreground">
-            Asigna el terminal a este equipo (controla el header <span className="font-mono">x-terminal-id</span>).
+            Asigna el terminal a este equipo (controla el header{" "}
+            <span className="font-mono">x-terminal-id</span>).
           </p>
         </div>
 
@@ -30,7 +54,6 @@ export function DeviceScreen() {
             <RefreshCw className="mr-2 size-4" />
             Refrescar
           </Button>
-
         </div>
       </div>
 
@@ -68,7 +91,11 @@ export function DeviceScreen() {
             </div>
 
             <div className="ml-auto">
-              <Button variant="destructive" onClick={() => void vm.clearDeviceTerminal()} disabled={!terminalReady || vm.loading}>
+              <Button
+                variant="destructive"
+                onClick={() => void vm.clearDeviceTerminal()}
+                disabled={!terminalReady || vm.loading}
+              >
                 <Trash2 className="mr-2 size-4" />
                 Quitar
               </Button>
@@ -77,25 +104,38 @@ export function DeviceScreen() {
         </CardContent>
       </Card>
 
+      {/* ✅ NIVEL DIOS: combobox */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Asignar desde lista</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
-          <select
-            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={vm.selectedId}
-            onChange={(e) => vm.setSelectedId(e.target.value)}
-            disabled={vm.loading}
-          >
-            {vm.terminals.length === 0 ? <option value="">— sin terminales —</option> : null}
-            {vm.terminals.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} {t.code ? `(${t.code})` : ""} · WH: {t.warehouseId.slice(0, 8)}
-              </option>
-            ))}
-          </select>
+          <div className="grid gap-2">
+            <div className="text-sm font-medium">Terminal</div>
+
+            <AsyncComboboxSingle
+              className="w-full"
+              value={vm.selectedId ? vm.selectedId : null}
+              onChange={(v) => vm.setSelectedId(v ?? "")}
+              placeholder={vm.terminals.length === 0 ? "— sin terminales —" : "Seleccionar terminal…"}
+              searchPlaceholder="Buscar por nombre o código…"
+              emptyText="Sin resultados."
+              disabled={vm.loading || vm.terminals.length === 0}
+              loadState="ready"
+              loadError={null}
+              items={filtered}
+              search={search}
+              setSearch={setSearch}
+              ensureLoaded={() => {}}
+            />
+
+            {selectedLabel ? (
+              <div className="text-xs text-muted-foreground">
+                Seleccionado: <span className="font-medium">{selectedLabel}</span>
+              </div>
+            ) : null}
+          </div>
 
           <Button onClick={() => void vm.assignSelected()} disabled={vm.loading || !vm.selectedId}>
             Asignar a este dispositivo
@@ -109,14 +149,21 @@ export function DeviceScreen() {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          <Input
-            value={vm.manualId}
-            onChange={(e) => vm.setManualId(e.target.value)}
-            placeholder="Pega aquí el terminalId (UUID)"
-            disabled={vm.loading}
-          />
+          <div className="grid gap-2">
+            <div className="text-sm font-medium">TerminalId (UUID)</div>
+            <Input
+              value={vm.manualId}
+              onChange={(e) => vm.setManualId(e.target.value)}
+              placeholder="Pega aquí el terminalId (UUID)"
+              disabled={vm.loading}
+            />
+          </div>
 
-          <Button variant="secondary" onClick={() => void vm.assignManual()} disabled={vm.loading || !vm.manualId.trim()}>
+          <Button
+            variant="secondary"
+            onClick={() => void vm.assignManual()}
+            disabled={vm.loading || !vm.manualId.trim()}
+          >
             Validar y asignar
           </Button>
         </CardContent>

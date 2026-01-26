@@ -67,6 +67,15 @@ export const ROUTES = {
     requiresCashOpen: false,
     rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
   },
+  adminAdjustments: {
+    id: "adminAdjustments",
+    path: "/admin/adjustments",
+    group: "admin",
+    requiresAuth: true,
+    requiresTerminal: true,
+    requiresCashOpen: false,
+    rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
+  },
   adminReports: {
     id: "adminReports",
     path: "/admin/reports",

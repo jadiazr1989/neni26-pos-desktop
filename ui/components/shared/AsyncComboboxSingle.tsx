@@ -27,6 +27,7 @@ export function AsyncComboboxSingle(props: {
   search: string;
   setSearch: (v: string) => void;
   ensureLoaded: () => void;
+  showPill?: boolean // default true
 
   className?: string; // container
 }) {
@@ -45,7 +46,7 @@ export function AsyncComboboxSingle(props: {
   return (
     <div className={cn("w-full", props.className)}>
       {/* selected pill */}
-      {selected ? (
+      {props.showPill !== false && selected ? (
         <div className="mb-2 flex items-center gap-2">
           <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
             <span className="truncate max-w-[320px]">{selected.label}</span>
