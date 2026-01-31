@@ -1,14 +1,13 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import type { CashCountReportDTO } from "@/lib/cash.types";
 import { cn } from "@/lib/utils";
 import type { JSX } from "react";
 
-type CashMode = "COUNT" | "CLOSE";
+import type { CashCountReportDTO, CashMode } from "@/lib/modules/cash/cash.dto";
 
 function money(n: number) {
-  return (n / 100).toFixed(2); // ajusta si minor != centavos
+  return (n / 100).toFixed(2);
 }
 
 export function CashCountCloseSummary(props: {

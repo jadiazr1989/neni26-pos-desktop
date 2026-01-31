@@ -1,17 +1,16 @@
 // src/modules/catalog/brands/ui/BrandsScreen.tsx
 "use client";
 
-import * as React from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, RefreshCw } from "lucide-react";
 
-import { BrandsTable } from "./ui/BrandsTable";
-import { BrandDialog } from "./ui/BrandDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useBrandsScreen } from "./hooks/useBrandsScreen";
+import { BrandDialog } from "./ui/BrandDialog";
+import { BrandsTable } from "./ui/BrandsTable";
 
 export function BrandsScreen() {
   const vm = useBrandsScreen();
@@ -39,7 +38,7 @@ export function BrandsScreen() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Listado</CardTitle>
+          <CardTitle className="">Listado</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">

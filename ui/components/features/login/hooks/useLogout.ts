@@ -1,11 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/fetch";
+import { useRouter } from "next/navigation";
 
-import { useSessionStore } from "@/stores/session.store";
-import { useTerminalStore } from "@/stores/terminal.store";
 import { useCashStore } from "@/stores/cash.store";
+import { useSessionStore } from "@/stores/session.store";
 
 export function useLogout() {
   const router = useRouter();
@@ -13,28 +12,21 @@ export function useLogout() {
   const setUser = useSessionStore((s) => s.setUser);
   const setStatus = useSessionStore((s) => s.setStatus);
 
-  const clearTerminal = useTerminalStore((s) => s.clear);
-  const clearCash = useCashStore((s) => s.setActive);
+  const setCashActive = useCashStore((s) => s.setActive);
 
   return async function logout(): Promise<void> {
     try {
-      // best effort: server logout
       await apiFetch("/api/v1/auth/logout", { method: "POST" });
     } catch {
-      // no-op: igual seguimos
+      // no-op
     } finally {
-      // limpiar estado local
+      // ✅ limpiar sesión, NO terminal
       setUser(null);
       setStatus("unauthenticated");
 
-      clearCash(null);
-      clearTerminal();
+      await setCashActive(null);
 
       router.replace("/login");
     }
   };
-}
-
-export function useLogin(){
-  
 }

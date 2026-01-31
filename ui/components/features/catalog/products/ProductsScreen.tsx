@@ -1,20 +1,19 @@
 // src/modules/catalog/products/ui/ProductsScreen.tsx
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
 import { Plus, RefreshCw } from "lucide-react";
+import Link from "next/link";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import { ProductsTable } from "./ui/ProductsTable";
-import { ProductDialog } from "./ui/ProductDialog";
-import { VariantDialog } from "./ui/VariantDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useProductsScreen } from "./hooks/useProductsScreen";
+import { ProductDialog } from "./ui/ProductDialog";
+import { ProductsTable } from "./ui/ProductsTable";
+import { VariantDialog } from "./ui/VariantDialog";
 
 export function ProductsScreen() {
   const vm = useProductsScreen();
@@ -42,7 +41,7 @@ export function ProductsScreen() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Listado</CardTitle>
+          <CardTitle className="">Listado</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">

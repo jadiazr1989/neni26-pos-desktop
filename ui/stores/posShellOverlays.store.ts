@@ -1,12 +1,13 @@
+// stores/posShellOverlays.store.ts
 import { create } from "zustand";
 
-export type CashMode = "COUNT" | "CLOSE";
+export type CashOverlayMode = "COUNT" | "CLOSE";
 
 type State = {
   cashModalOpen: boolean;
-  cashMode: CashMode;
+  cashMode: CashOverlayMode;
 
-  openCashModal: (mode: CashMode) => void;
+  openCashModal: (mode: CashOverlayMode) => void;
   closeCashModal: () => void;
 };
 

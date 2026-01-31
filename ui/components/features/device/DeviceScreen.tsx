@@ -1,12 +1,12 @@
 // src/modules/admin/device/ui/DeviceScreen.tsx
 "use client";
 
+import { Laptop, RefreshCw, Trash2 } from "lucide-react";
 import * as React from "react";
-import { RefreshCw, Trash2, Laptop } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useDeviceScreen } from "./hooks/useDeviceScreen";
 
@@ -68,7 +68,7 @@ export function DeviceScreen() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Estado actual</CardTitle>
+          <CardTitle className="">Estado actual</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
@@ -107,7 +107,7 @@ export function DeviceScreen() {
       {/* ✅ NIVEL DIOS: combobox */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Asignar desde lista</CardTitle>
+          <CardTitle className="">Asignar desde lista</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
@@ -145,7 +145,7 @@ export function DeviceScreen() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Asignar manual</CardTitle>
+          <CardTitle className="">Asignar manual</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">

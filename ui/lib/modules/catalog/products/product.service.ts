@@ -8,6 +8,8 @@ import type {
   UpdateProductInput,
   CreateVariantInput,
   UpdateVariantInput,
+  ListPosCatalogQuery,
+  ListPosCatalogResponse,
 } from "./product.dto";
 
 export type ListProductsQuery = ListParams;
@@ -75,6 +77,22 @@ class ProductService {
     await this.uploadVariantImage(variantId, imageFile);
     return variantId;
   }
+
+
+  // ✅ POS catalog
+  async listPosCatalog(q: ListPosCatalogQuery = {}): Promise<ListPosCatalogResponse> {
+    // default defensivo (si no lo manda el UI)
+    const payload: ListPosCatalogQuery = {
+      inStock: q.inStock ?? true,
+      limit: q.limit ?? 8,
+      categoryId: q.categoryId ?? "all",
+      q: q.q ?? "",
+      cursor: q.cursor ?? null,
+    };
+
+    return this.port.listPosCatalog(payload);
+  }
+
 }
 
 export const productService = new ProductService(new ProductHttpAdapter());

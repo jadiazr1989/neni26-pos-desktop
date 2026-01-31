@@ -7,4 +7,8 @@ export { UsersScreen } from "./users/UsersScreen"
 export {TerminalsScreen} from "./settings/TerminalsScreen";
 export {DeviceScreen} from "./device/DeviceScreen"
 export {WarehousesScreen} from "./warehouse/WarehousesScreen"
+export {PurchasesScreen} from "./purchases/PurchasesScreen"
+export {PurchaseDetailScreen} from "./purchases/PurchaseDetailScreen"
+export {AdminCashReportsScreen} from"./reports/AdminCashReportsScreen"
+export {AdminCashReportsDetailsScreen} from"./reports/AdminCashReportsDetailsScreen"
 

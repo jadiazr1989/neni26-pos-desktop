@@ -1,14 +1,13 @@
 "use client";
 
-import * as React from "react";
-import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, RefreshCw } from "lucide-react";
 
-import { UsersTable } from "./ui/UsersTable";
-import { UserDialog } from "./ui/UserDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { TriStateFilterBar } from "@/components/shared/TriStateFilterBar";
+import { UserDialog } from "./ui/UserDialog";
+import { UsersTable } from "./ui/UsersTable";
 
 import { useUsersScreenController } from "./hooks/useUsersScreenController";
 
@@ -38,7 +37,7 @@ export function UsersScreen() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Listado</CardTitle>
+          <CardTitle className="">Listado</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">

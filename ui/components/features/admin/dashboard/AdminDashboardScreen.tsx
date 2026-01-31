@@ -1,32 +1,31 @@
 "use client";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
 import {
-  Package,
-  Wallet,
-  Plus,
-  ArrowRight,
   AlertTriangle,
-  ShoppingCart,
+  ArrowRight,
   ClipboardList,
+  Package,
+  Plus,
+  ShoppingCart,
+  Wallet,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import * as React from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 import type { AdminDashboardRange } from "@/lib/modules/admin/dashboard/admin-dashboard.dto";
 import { useAdminDashboard } from "./hooks/useAdminDashboard";
 
+import { buildProductDetailHref } from "./routing/dashboard-links";
 import { DashboardTrendChart } from "./ui/charts/DashboardTrendChart";
-import { buildDashboardVM, makeDateTimeFormatter, makeMoneyFormatter, TopProductVM } from "./ui/presenter/admin-dashboard.presenter";
 import { DashboardHeader } from "./ui/DashboardHeader";
 import { DashboardScopeBadges } from "./ui/DashboardScopeBadges";
-import { KpiCard } from "./ui/KpiCard";
-import { buildProductDetailHref } from "./routing/dashboard-links";
-import { MiniAlert } from "./ui/MiniAlert";
-import { QuickAction } from "./ui/QuickAction";
 import { EmptyBlock } from "./ui/EmptyBlock";
+import { KpiCard } from "./ui/KpiCard";
+import { MiniAlert } from "./ui/MiniAlert";
+import { buildDashboardVM, makeDateTimeFormatter, makeMoneyFormatter, TopProductVM } from "./ui/presenter/admin-dashboard.presenter";
+import { QuickAction } from "./ui/QuickAction";
 
 
 
@@ -92,16 +91,17 @@ export function AdminDashboardScreen() {
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard title={vm?.kpis[0]?.title ?? "Ventas netas"} value={vm?.kpis[0]?.value ?? "—"} hint={vm?.kpis[0]?.hint ?? ""} tone={vm?.kpis[0]?.tone} />
-        <KpiCard title={vm?.kpis[1]?.title ?? "Tickets"} value={vm?.kpis[1]?.value ?? "—"} hint={vm?.kpis[1]?.hint ?? ""} />
-        <KpiCard title={vm?.kpis[2]?.title ?? "Ticket promedio"} value={vm?.kpis[2]?.value ?? "—"} hint={vm?.kpis[2]?.hint ?? ""} />
+        <KpiCard title={vm?.kpis[1]?.title ?? "Tickets"} value={vm?.kpis[1]?.value ?? "—"} hint={vm?.kpis[1]?.hint ?? ""} tone={vm?.kpis[1]?.tone} />
+        <KpiCard title={vm?.kpis[2]?.title ?? "Ticket promedio"} value={vm?.kpis[2]?.value ?? "—"} hint={vm?.kpis[2]?.hint ?? ""} tone={vm?.kpis[2]?.tone} />
         <KpiCard title="Caja" value={vm?.cash.label ?? "—"} hint={vm?.cash.hint ?? ""} tone={vm?.cash.tone} />
       </div>
+
 
       {/* Main grid */}
       <div className="grid gap-4 lg:grid-cols-12">
         <Card className="lg:col-span-8">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Tendencia</CardTitle>
+            <CardTitle className="">Tendencia</CardTitle>
             <div className="text-xs text-muted-foreground">Bar: tickets · Line: ventas netas</div>
           </CardHeader>
           <CardContent>
@@ -116,7 +116,7 @@ export function AdminDashboardScreen() {
         <div className="lg:col-span-4 space-y-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Acciones rápidas</CardTitle>
+              <CardTitle className="">Acciones rápidas</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
               <QuickAction icon={Plus} title="Crear producto" subtitle="Alta rápida en catálogo" onClick={() => router.push("/admin/products/new")} />
@@ -127,7 +127,7 @@ export function AdminDashboardScreen() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Top productos</CardTitle>
+              <CardTitle className="">Top productos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {!vm ? (
@@ -156,7 +156,7 @@ export function AdminDashboardScreen() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Pagos por método</CardTitle>
+              <CardTitle className="">Pagos por método</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {!vm ? (

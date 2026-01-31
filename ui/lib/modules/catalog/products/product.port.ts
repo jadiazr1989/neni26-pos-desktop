@@ -12,6 +12,8 @@ import type {
   UpdateVariantInput,
   UpdateVariantResponse,
   ProductVariantDTO,
+  ListPosCatalogQuery,
+  ListPosCatalogResponse,
 } from "./product.dto";
 
 export type ListParams = {
@@ -36,4 +38,8 @@ export interface ProductPort {
 
   // upload image (tu endpoint)
   uploadVariantImage(variantId: string, file: File): Promise<void>;
+
+    // ✅ POS catalog (scoped por x-terminal-id -> warehouse)
+  listPosCatalog(params?: ListPosCatalogQuery): Promise<ListPosCatalogResponse>;
+
 }

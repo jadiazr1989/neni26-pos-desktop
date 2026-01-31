@@ -1,13 +1,12 @@
-import { JSX } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  ShoppingCart,
   RotateCcw,
   Search,
-  Wallet,
-  AlertTriangle,
+  ShoppingCart,
+  Wallet
 } from "lucide-react";
+import { JSX } from "react";
 
 type IconKey = "sale" | "returns" | "catalog" | "cash";
 
@@ -52,7 +51,7 @@ export function ActionCard(props: {
           </div>
 
           <div className="min-w-0">
-            <div className="text-base font-semibold leading-tight truncate">
+            <div className=" font-semibold leading-tight truncate">
               {props.title}
             </div>
             <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -79,7 +78,7 @@ export function ActionCard(props: {
       {/* Bottom button (alineación consistente) */}
       <div className="mt-4">
         <Button
-          className="w-full h-11"
+          className="w-full h-10"
           onClick={props.onOpen}
           disabled={Boolean(props.disabled)}
         >

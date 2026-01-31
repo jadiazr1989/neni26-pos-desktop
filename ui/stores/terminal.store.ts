@@ -1,14 +1,14 @@
-import { create } from "zustand";
 import { getStorage } from "@/core/storage/storage";
 import { storageKeys } from "@/core/storage/storageKeys";
 import { setTerminalIdForRequests } from "@/core/terminal/terminalResolver";
+import { create } from "zustand";
 
 export type TerminalState = {
   xTerminalId: string | null;
   hydrated: boolean;
   hydrate: () => Promise<void>;
   setXTerminalId: (id: string) => Promise<void>;
-  clear: () => Promise<void>;
+  unpairTerminal: () => Promise<void>;
 };
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
@@ -33,7 +33,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     set({ xTerminalId: id, hydrated: true });
   },
 
-  clear: async () => {
+  unpairTerminal: async () => {
     const storage = getStorage();
     await storage.remove(storageKeys.xTerminalId);
     await storage.remove("terminalId");

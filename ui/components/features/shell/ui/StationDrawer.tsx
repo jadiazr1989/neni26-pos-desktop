@@ -1,23 +1,23 @@
 "use client";
 
-import * as React from "react";
 import {
-  Wifi,
-  WifiOff,
-  Monitor,
   Lock,
+  Monitor,
+  RotateCw,
+  Settings,
+  Shield,
   Unlock,
   User,
-  Shield,
-  RotateCw,
   Wallet,
-  Settings,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
+import * as React from "react";
 
 import { Button } from "@/components/ui/button";
-import { StatusChip } from "./StatusChip";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { StatusChip } from "./StatusChip";
 
 type ApiStatus = "online" | "offline" | "unknown";
 
@@ -116,7 +116,7 @@ export function StationDrawer(props: {
           <div className="grid grid-cols-2 gap-3">
             {props.area === "pos" ? (
               <Button
-                className="h-11"
+                className="h-10"
                 onClick={props.onOpenCash}
                 disabled={props.cashOpen || props.apiStatus !== "online" || !props.terminalReady}
               >
@@ -124,13 +124,13 @@ export function StationDrawer(props: {
                 Abrir caja
               </Button>
             ) : (
-              <Button className="h-11" onClick={props.onGoSetup}>
+              <Button className="h-10" onClick={props.onGoSetup}>
                 <Settings className="mr-2 size-4" />
                 Configuración
               </Button>
             )}
 
-            <Button variant="secondary" className="h-11" onClick={props.onRefresh}>
+            <Button variant="secondary" className="h-10" onClick={props.onRefresh}>
               <RotateCw className="mr-2 size-4" />
               Actualizar
             </Button>

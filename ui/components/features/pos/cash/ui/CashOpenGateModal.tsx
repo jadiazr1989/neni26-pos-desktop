@@ -88,7 +88,6 @@ export function CashOpenGateModal(props: {
   onGoAdmin?: () => void;
 }): JSX.Element | null {
   const { submit, opening } = useOpenCash({
-    terminalId: props.terminalId,
     role: props.role,
     onSuccess: () => {},
   });
@@ -198,12 +197,12 @@ export function CashOpenGateModal(props: {
           {opening ? "Abriendo..." : "Abrir caja"}
         </Button>
 
-        <Button variant="secondary" className="mt-2 h-11 w-full" type="button" onClick={props.onRefresh}>
+        <Button variant="secondary" className="mt-2 h-10 w-full" type="button" onClick={props.onRefresh}>
           Reintentar / Actualizar
         </Button>
 
         {(props.role === "ADMIN" || props.role === "MANAGER") && props.onGoAdmin && (
-          <Button variant="ghost" className="mt-2 h-11 w-full" type="button" onClick={props.onGoAdmin}>
+          <Button variant="ghost" className="mt-2 h-10 w-full" type="button" onClick={props.onGoAdmin}>
             Ir a administración
           </Button>
         )}
@@ -217,7 +216,7 @@ export function CashOpenGateModal(props: {
 function Header(props: { title: string; helper: string }): JSX.Element {
   return (
     <>
-      <div className="text-base font-semibold">{props.title}</div>
+      <div className=" font-semibold">{props.title}</div>
       <div className="mt-1 text-xs text-muted-foreground">{props.helper}</div>
     </>
   );

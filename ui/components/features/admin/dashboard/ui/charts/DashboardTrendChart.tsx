@@ -23,20 +23,33 @@ export function DashboardTrendChart(props: { data: TrendDatum[] }) {
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
+
           <XAxis dataKey="date" tickMargin={8} />
           <YAxis yAxisId="left" tickMargin={8} />
           <YAxis yAxisId="right" orientation="right" tickMargin={8} />
 
-          {/* Tooltip tipado via props (active/label/payload) */}
           <Tooltip content={<DashboardTrendTooltip />} />
 
-          {/* Bar = tickets */}
-          <Bar yAxisId="right" dataKey="tickets" />
+          {/* 🟡 Tickets (actividad) */}
+          <Bar
+            yAxisId="right"
+            dataKey="tickets"
+            fill="hsl(var(--accent))"
+            radius={[6, 6, 0, 0]}
+          />
 
-          {/* Line = netBaseMinor */}
-          <Line yAxisId="left" type="monotone" dataKey="netBaseMinor" dot={false} />
+          {/* 🟢 Ventas netas */}
+          <Line
+            yAxisId="left"
+            type="monotone"
+            dataKey="netBaseMinor"
+            stroke="hsl(var(--success))"
+            strokeWidth={2.5}
+            dot={false}
+          />
         </ComposedChart>
+
       </ResponsiveContainer>
     </div>
   );

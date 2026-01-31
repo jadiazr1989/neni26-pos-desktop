@@ -1,40 +1,42 @@
 "use client";
 
-import type { CashCountReportDTO, CurrencyCode } from "@/lib/cash.types";
 import type { JSX } from "react";
 import * as React from "react";
 
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { buildCounted } from "../utils";
 import { CashCountCloseForm } from "./CashCountCloseForm";
 import { CashCountCloseSummary } from "./CashCountCloseSummary";
-
-export type CashMode = "COUNT" | "CLOSE";
+import type { CashCounted, CashCountReportDTO, CashMode } from "@/lib/modules/cash/cash.dto";
 
 export function CashCountClosePanel(props: {
   mode: CashMode;
   onClose: () => void;
-  onCount: (counted: Partial<Record<CurrencyCode, number>>) => Promise<{ report: CashCountReportDTO }>;
-  onCloseCash: (counted: Partial<Record<CurrencyCode, number>>) => Promise<void>;
+  onCount: (counted: CashCounted) => Promise<{ report: CashCountReportDTO }>;
+  onCloseCash: (counted: CashCounted) => Promise<void>;
 }): JSX.Element {
   const [cup, setCup] = React.useState("0");
   const [usd, setUsd] = React.useState("0");
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
-
   const [report, setReport] = React.useState<CashCountReportDTO | null>(null);
+  const [confirmCloseOpen, setConfirmCloseOpen] = React.useState(false);
 
   const title = props.mode === "COUNT" ? "Arqueo de caja" : "Cierre de caja";
 
-  const submit = React.useCallback(async () => {
-    if (loading) return;
+  const run = React.useCallback(async () => {
+    console.log("[CashCountClosePanel] run called. mode=", props.mode);
+
+    if (loading) {
+      console.log("[CashCountClosePanel] run skipped: loading=true");
+      return;
+    }
 
     const { counted: rebuilt, error: err } = buildCounted(cup, usd);
-    if (err) return setError(err);
-
-    // confirm extra solo para CLOSE
-    if (props.mode === "CLOSE") {
-      const ok = window.confirm("¿Seguro? Esto genera Z y cierra la caja.");
-      if (!ok) return;
+    if (err) {
+      console.log("[CashCountClosePanel] buildCounted error:", err);
+      setError(err);
+      return;
     }
 
     setError(null);
@@ -44,20 +46,29 @@ export function CashCountClosePanel(props: {
       if (props.mode === "COUNT") {
         const resp = await props.onCount(rebuilt);
         setReport(resp.report);
-        // ✅ NO cerramos: dejamos el reporte visible
         return;
       }
 
       await props.onCloseCash(rebuilt);
-      props.onClose(); // ✅ solo cerramos cuando fue CLOSE
+      props.onClose();
     } catch (e) {
+      console.log("[CashCountClosePanel] run error:", e);
       setError(e instanceof Error ? e.message : "No se pudo completar la operación.");
     } finally {
       setLoading(false);
     }
-  }, [cup, usd, loading, props]);
+  }, [cup, usd, loading, props.mode, props.onClose, props.onCloseCash, props.onCount]);
 
-  // Hotkeys
+  const submit = React.useCallback(() => {
+    console.log("[CashCountClosePanel] submit called. mode=", props.mode);
+
+    if (props.mode === "CLOSE") {
+      setConfirmCloseOpen(true);
+      return;
+    }
+    void run();
+  }, [props.mode, run]);
+
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -67,20 +78,19 @@ export function CashCountClosePanel(props: {
       }
       if (e.key === "Enter") {
         e.preventDefault();
+        if (props.mode === "CLOSE" && !e.ctrlKey) return;
         void submit();
       }
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [props, submit]);
+  }, [props.mode, props.onClose, submit]);
 
   return (
     <div className="h-full w-full flex flex-col">
       <div className="px-6 py-4 border-b border-border bg-card/60 backdrop-blur">
-        <div className="text-base font-semibold">{title}</div>
-        <div className="text-xs text-muted-foreground">
-          Esc: volver · Enter: confirmar
-        </div>
+        <div className="font-semibold">{title}</div>
+        <div className="text-xs text-muted-foreground">Esc: volver · Enter: confirmar · (CLOSE: Ctrl+Enter)</div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -102,6 +112,22 @@ export function CashCountClosePanel(props: {
           <CashCountCloseSummary mode={props.mode} cup={cup} usd={usd} report={report} />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmCloseOpen}
+        onOpenChange={setConfirmCloseOpen}
+        title="Cerrar caja (Z)"
+        description="Vas a cerrar caja y generar Z. ¿Continuar?"
+        confirmText="Cerrar caja"
+        cancelText="Cancelar"
+        destructive
+        busy={loading}
+        onConfirm={async () => {
+          console.log("[CashCountClosePanel] confirm OK clicked");
+          setConfirmCloseOpen(false);
+          await run();
+        }}
+      />
     </div>
   );
 }

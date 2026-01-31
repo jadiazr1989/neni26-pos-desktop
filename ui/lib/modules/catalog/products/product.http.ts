@@ -14,6 +14,8 @@ import type {
   UpdateVariantInput,
   UpdateVariantResponse,
   ProductVariantDTO,
+  ListPosCatalogQuery,
+  ListPosCatalogResponse,
 } from "./product.dto";
 
 function toQuery(params?: ListParams): string {
@@ -22,6 +24,20 @@ function toQuery(params?: ListParams): string {
   if (params.search) qs.set("search", params.search);
   if (typeof params.take === "number") qs.set("take", String(params.take));
   if (typeof params.skip === "number") qs.set("skip", String(params.skip));
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+}
+
+function toPosCatalogQuery(params?: ListPosCatalogQuery): string {
+  if (!params) return "";
+  const qs = new URLSearchParams();
+
+  if (params.categoryId) qs.set("categoryId", params.categoryId);
+  if (params.q) qs.set("q", params.q);
+  if (typeof params.limit === "number") qs.set("limit", String(params.limit));
+  if (params.cursor) qs.set("cursor", params.cursor);
+  if (typeof params.inStock === "boolean") qs.set("inStock", params.inStock ? "true" : "false");
+
   const s = qs.toString();
   return s ? `?${s}` : "";
 }
@@ -73,4 +89,10 @@ export class ProductHttpAdapter implements ProductPort {
     fd.append("image", file);
     await apiClient.form(`/api/v1/products/variants/${variantId}/image`, fd, { method: "POST" });
   }
+
+    // ✅ POS catalog
+  listPosCatalog(params?: ListPosCatalogQuery): Promise<ListPosCatalogResponse> {
+    return apiClient.json(`/api/v1/products/pos${toPosCatalogQuery(params)}`, { method: "GET" });
+  }
+
 }

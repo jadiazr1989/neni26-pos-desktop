@@ -74,3 +74,38 @@ export type UpdateVariantResponse = { variant: { id: string } };
 // src/lib/modules/catalog/products/product.dto.ts
 
 
+// ✅ POS Catalog (Terminal warehouse scoped)
+
+export type PosCatalogRowDTO = {
+  variantId: string;
+
+  sku: string;
+  barcode: string | null;
+  title: string | null;
+  imageUrl: string;
+
+  productId: string;
+  productName: string;
+  productBarcode: string | null;
+  categoryId: string;
+
+  unit: VariantUnit;
+  priceBaseMinor: number;
+
+  qty: number;
+  reservedQty: number;
+  availableQty: number;
+};
+
+export type ListPosCatalogQuery = {
+  categoryId?: string;      // "all" o uuid
+  q?: string;               // search
+  limit?: number;           // 1..50 (backend)
+  cursor?: string | null;   // productVariantId
+  inStock?: boolean;        // default true
+};
+
+export type ListPosCatalogResponse = {
+  rows: PosCatalogRowDTO[];
+  nextCursor: string | null;
+};

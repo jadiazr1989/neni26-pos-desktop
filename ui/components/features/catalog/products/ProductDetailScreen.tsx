@@ -1,7 +1,6 @@
 // src/modules/catalog/products/ui/ProductDetailScreen.tsx
 "use client";
 
-import * as React from "react";
 import { ArrowLeft, Plus, RefreshCw } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -9,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-import { VariantDialog } from "./ui/VariantDialog";
-import { VariantsTable } from "./ui/VariantsTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useProductDetailScreen } from "./hooks/useProductDetailScreen";
+import { VariantDialog } from "./ui/VariantDialog";
+import { VariantsTable } from "./ui/VariantsTable";
 
 export function ProductDetailScreen(props: { productId: string }) {
   const vm = useProductDetailScreen(props.productId);
@@ -54,7 +53,7 @@ export function ProductDetailScreen(props: { productId: string }) {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Variantes</CardTitle>
+          <CardTitle className="">Variantes</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">

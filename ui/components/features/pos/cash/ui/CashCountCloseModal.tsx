@@ -1,19 +1,15 @@
 "use client";
 
-import type { CashCountReportDTO, CurrencyCode } from "@/lib/cash.types";
 import type { JSX } from "react";
 import { CashCountClosePanel } from "./CashCountClosePanel";
-
-type CashMode = "COUNT" | "CLOSE";
+import type { CashCounted, CashCountReportDTO, CashMode } from "@/lib/modules/cash/cash.dto";
 
 export function CashCountCloseModal(props: {
   open: boolean;
   mode: CashMode;
   onClose: () => void;
-  onCount: (
-    counted: Partial<Record<CurrencyCode, number>>
-  ) => Promise<{ report: CashCountReportDTO }>;
-  onCloseCash: (counted: Partial<Record<CurrencyCode, number>>) => Promise<void>;
+  onCount: (counted: CashCounted) => Promise<{ report: CashCountReportDTO }>;
+  onCloseCash: (counted: CashCounted) => Promise<void>;
 }): JSX.Element | null {
   if (!props.open) return null;
 

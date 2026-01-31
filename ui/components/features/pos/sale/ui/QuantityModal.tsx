@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { Product } from "../types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Product } from "../types";
 
 export function QuantityModal(props: {
   open: boolean;
@@ -52,7 +52,7 @@ export function QuantityModal(props: {
           <button type="button" className="text-sm font-semibold hover:underline" onClick={props.onClose}>
             ← Atrás
           </button>
-          <div className="text-base font-semibold">{props.title ?? "Cantidad"}</div>
+          <div className=" font-semibold">{props.title ?? "Cantidad"}</div>
 
           <div className="w-10" />
         </div>
@@ -64,7 +64,7 @@ export function QuantityModal(props: {
         <div className="mt-4">
           <label className="text-xs text-muted-foreground">Cantidad ({props.product.unit})</label>
           <input
-            className="mt-2 h-11 w-full rounded-xl border border-border bg-card px-3 text-sm font-mono outline-none focus:ring-2 focus:ring-ring"
+            className="mt-2 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm font-mono outline-none focus:ring-2 focus:ring-ring"
             value={qty}
             onChange={(e) => setQty(Number(e.target.value))}
             inputMode="decimal"

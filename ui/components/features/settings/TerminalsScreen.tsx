@@ -1,17 +1,17 @@
 "use client";
 
-import * as React from "react";
 import { Plus, RefreshCw } from "lucide-react";
+import * as React from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useTerminalsScreen } from "./hooks/useTerminalsScreen";
-import { TerminalsTable } from "./ui/TerminalsTable";
 import { TerminalDialog } from "./ui/TerminalDialog";
+import { TerminalsTable } from "./ui/TerminalsTable";
 
 
 export function TerminalsScreen(): React.JSX.Element {
@@ -42,7 +42,7 @@ export function TerminalsScreen(): React.JSX.Element {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Listado</CardTitle>
+          <CardTitle className="">Listado</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">

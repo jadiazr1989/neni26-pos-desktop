@@ -8,7 +8,7 @@ import { VirtualList } from "@/components/shared/VirtualList";
 export type VirtualColumnDef<T> = {
   key: string;
   header: React.ReactNode;
-  className?: string; // usa col-span-* aquí
+  className?: string;
   render: (row: T) => React.ReactNode;
 };
 
@@ -17,7 +17,7 @@ export function VirtualDataTable<T>(props: {
   columns: Array<VirtualColumnDef<T>>;
   rowKey: (row: T) => string;
 
-  height: number; // px del scroll container
+  height: number;
   estimateSize?: number;
   overscan?: number;
 
@@ -29,16 +29,17 @@ export function VirtualDataTable<T>(props: {
 
   // row interaction
   onRowClick?: (row: T) => void;
+  rowClickScope?: "row" | "cell"; // ✅ NEW
   getRowClassName?: (row: T) => string;
 
   className?: string;
-
-  // ✅ opcional: sticky header (default true)
   stickyHeader?: boolean;
 }) {
   const hasMore = props.hasMore ?? false;
-  const clickable = typeof props.onRowClick === "function";
   const sticky = props.stickyHeader ?? true;
+
+  const rowClickScope = props.rowClickScope ?? "row";
+  const rowClickable = rowClickScope === "row" && typeof props.onRowClick === "function";
 
   const baseRow =
     "grid grid-cols-12 gap-2 px-3 py-2 items-center outline-none transition-colors";
@@ -78,35 +79,30 @@ export function VirtualDataTable<T>(props: {
           }}
           renderRow={(row, idx) => {
             const key = props.rowKey(row);
-
-            // ✅ zebra global
             const zebra = idx % 2 === 0 ? "bg-background" : "bg-muted/10";
-
-            // ✅ per-row custom class (selected/highlight/etc.)
             const rowCls = props.getRowClassName?.(row) ?? "";
-
-            const disabledClick = clickable && Boolean(props.isLoading);
+            const disabledRowClick = rowClickable && Boolean(props.isLoading);
 
             return (
               <div
                 key={key}
-                role={clickable ? "button" : undefined}
-                tabIndex={clickable ? 0 : undefined}
-                aria-disabled={clickable ? props.isLoading : undefined}
+                role={rowClickable ? "button" : undefined}
+                tabIndex={rowClickable ? 0 : undefined}
+                aria-disabled={rowClickable ? props.isLoading : undefined}
                 className={cn(
                   baseRow,
                   zebra,
-                  "border-b border-border/60 last:border-b-0", // ✅ separación suave entre filas
-                  clickable && clickableRow,
-                  disabledClick && "opacity-60 pointer-events-none",
+                  "border-b border-border/60 last:border-b-0",
+                  rowClickable && clickableRow,
+                  disabledRowClick && "opacity-60 pointer-events-none",
                   rowCls
                 )}
                 onClick={() => {
-                  if (!clickable || props.isLoading) return;
+                  if (!rowClickable || props.isLoading) return;
                   props.onRowClick?.(row);
                 }}
                 onKeyDown={(e) => {
-                  if (!clickable || props.isLoading) return;
+                  if (!rowClickable || props.isLoading) return;
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     props.onRowClick?.(row);

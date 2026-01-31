@@ -1,11 +1,11 @@
 // src/modules/admin/device/hooks/useDeviceScreen.ts
 "use client";
 
-import * as React from "react";
-import { terminalService } from "@/lib/modules/terminals/terminal.service";
 import type { TerminalDTO } from "@/lib/modules/terminals/terminal.dto";
-import { useTerminalStore } from "@/stores/terminal.store";
+import { terminalService } from "@/lib/modules/terminals/terminal.service";
 import { notify } from "@/lib/notify/notify";
+import { useTerminalStore } from "@/stores/terminal.store";
+import * as React from "react";
 
 type Vm = {
   terminals: TerminalDTO[];
@@ -32,7 +32,7 @@ export function useDeviceScreen(): Vm {
   const hydrated = useTerminalStore((s) => s.hydrated);
   const xTerminalId = useTerminalStore((s) => s.xTerminalId);
   const setXTerminalId = useTerminalStore((s) => s.setXTerminalId);
-  const clear = useTerminalStore((s) => s.clear);
+  const clear = useTerminalStore((s) => s.unpairTerminal);
 
   const [terminals, setTerminals] = React.useState<TerminalDTO[]>([]);
   const [loading, setLoading] = React.useState(false);

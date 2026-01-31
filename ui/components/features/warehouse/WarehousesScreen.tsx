@@ -1,14 +1,13 @@
 "use client";
 
-import * as React from "react";
-import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, RefreshCw } from "lucide-react";
 
-import { WarehousesTable } from "./ui/WarehousesTable";
-import { WarehouseDialog } from "./ui/WarehouseDialog";
-import { useWarehousesScreen } from "./hooks/useWarehousesScreen";
 import { TriStateFilterBar } from "@/components/shared/TriStateFilterBar";
+import { useWarehousesScreen } from "./hooks/useWarehousesScreen";
+import { WarehouseDialog } from "./ui/WarehouseDialog";
+import { WarehousesTable } from "./ui/WarehousesTable";
 
 export function WarehousesScreen() {
     const vm = useWarehousesScreen();
@@ -37,7 +36,7 @@ export function WarehousesScreen() {
 
             <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Listado</CardTitle>
+                    <CardTitle className="">Listado</CardTitle>
                 </CardHeader>
 
                 <CardContent className="grid gap-3">

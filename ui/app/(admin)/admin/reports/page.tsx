@@ -1,6 +1,6 @@
 "use client";
-import { AdminDashboardScreen } from "@/components/features/admin/dashboard";
+import { AdminCashReportsScreen } from "@/components/features";
 
 export default function ReportsPage() {
-  return <AdminDashboardScreen />;
+  return <AdminCashReportsScreen />;
 }

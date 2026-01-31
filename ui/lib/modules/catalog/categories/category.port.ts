@@ -5,6 +5,7 @@ import type {
   DeleteCategoryResponse,
   GetCategoryResponse,
   ListCategoriesResponse,
+  ListPosCategoriesResponse,
   UpdateCategoryInput,
   UpdateCategoryResponse,
 } from "./category.dto";
@@ -16,6 +17,12 @@ export type ListParams = {
   skip?: number;
 };
 
+export type ListPosCategoriesParams = {
+  inStock?: boolean;
+  limit?: number;
+  cursor?: string | null;
+};
+
 export interface CategoryPort {
   list(params?: ListParams): Promise<ListCategoriesResponse>;
   getById(id: string): Promise<GetCategoryResponse>;
@@ -23,4 +30,5 @@ export interface CategoryPort {
   update(id: string, patch: UpdateCategoryInput): Promise<UpdateCategoryResponse>;
   remove(id: string): Promise<DeleteCategoryResponse>;
   uploadImage(id: string, file: File): Promise<void>;
+  listForPos(params: ListPosCategoriesParams): Promise<ListPosCategoriesResponse>;
 }

@@ -42,6 +42,17 @@ export type Breadcrumb = {
   label: string;       // "Raíz" o nombre
 };
 
+export type PosCategoryDTO = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+};
+
+export type ListPosCategoriesResponse = {
+  rows: PosCategoryDTO[];
+  nextCursor: string | null;
+};
+
 export type CategoryTreeState = {
   parentId: string | null;        // null = raíz
   breadcrumbs: Breadcrumb[];       // ["Raíz", "Bebidas", ...]

@@ -4,15 +4,16 @@
 import * as React from "react";
 import type { ProductVariantDTO } from "@/lib/modules/catalog/products/product.dto";
 import type { VariantUnit } from "../variants/variant.constants";
-import { normalizeBarcode, parseNonNegInt } from "../variants/variant.parsers";
+import { normalizeBarcode } from "../variants/variant.parsers";
+import { parseMoneyToMinor, minorToMoneyString } from "@/lib/money/money";
 
 export type VariantFormState = {
   sku: string;
   barcode: string;
   title: string;
   unit: VariantUnit | "";
-  price: string;
-  cost: string;
+  price: string; // ✅ decimal string (ej "12.05" | "12,05")
+  cost: string;  // ✅ decimal string
   imageFile: File | null;
 };
 
@@ -21,12 +22,19 @@ export type VariantFormOutput = {
   barcode: string | null;
   title: string | null;
   unit: VariantUnit;
-  attributes: null;              // ✅ add
-  priceBaseMinor: number;
-  costBaseMinor: number;
+  attributes: null;
+  priceBaseMinor: number; // ✅ int
+  costBaseMinor: number;  // ✅ int
   imageFile: File | null;
 };
 
+type ValidateResult =
+  | { ok: true; value: VariantFormOutput }
+  | { ok: false; error: string };
+
+// Por ahora fijo. Si mañana quieres por moneda:
+// USD/EUR/CUP -> 2, o CUP -> 0, lo haces paramétrico aquí.
+const MONEY_SCALE = 2;
 
 export function useVariantForm(args: {
   open: boolean;
@@ -38,34 +46,33 @@ export function useVariantForm(args: {
     barcode: "",
     title: "",
     unit: "",
-    price: "0",
-    cost: "0",
+    price: "0.00",
+    cost: "0.00",
     imageFile: null,
   });
-
-  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!args.open) return;
 
     const v = args.initial;
+
     setState({
       sku: v?.sku ?? "",
       barcode: v?.barcode ?? "",
       title: v?.title ?? "",
       unit: (v?.unit ?? "") as VariantUnit | "",
-      price: v ? String(v.priceBaseMinor) : "0",
-      cost: v ? String(v.costBaseMinor) : "0",
-      imageFile: null, // siempre null al abrir, como CategoryDialog
+      // ✅ viene en minor -> lo mostramos como decimal (ej 12 -> "0.12")
+      price: v ? minorToMoneyString(v.priceBaseMinor ?? 0, { scale: MONEY_SCALE }) : "0.00",
+      cost: v ? minorToMoneyString(v.costBaseMinor ?? 0, { scale: MONEY_SCALE }) : "0.00",
+      imageFile: null,
     });
-    setError(null);
   }, [args.open, args.initial]);
 
   function patch(p: Partial<VariantFormState>) {
     setState((s) => ({ ...s, ...p }));
   }
 
-  function validate(): { ok: true; value: VariantFormOutput } | { ok: false; error: string } {
+  function validate(): ValidateResult {
     const sku = state.sku.trim();
     if (!sku) return { ok: false, error: "SKU requerido." };
 
@@ -76,16 +83,18 @@ export function useVariantForm(args: {
       return { ok: false, error: "Barcode inválido. Usa solo números." };
     }
 
-    const priceMinor = parseNonNegInt(state.price);
-    if (priceMinor == null) return { ok: false, error: "Precio inválido. Debe ser entero >= 0." };
+    const priceParsed = parseMoneyToMinor(state.price, { scale: MONEY_SCALE });
+    if (!priceParsed.ok) return { ok: false, error: `Precio: ${priceParsed.error}` };
 
-    const costMinor = parseNonNegInt(state.cost);
-    if (costMinor == null) return { ok: false, error: "Costo inválido. Debe ser entero >= 0." };
+    const costParsed = parseMoneyToMinor(state.cost, { scale: MONEY_SCALE });
+    if (!costParsed.ok) return { ok: false, error: `Costo: ${costParsed.error}` };
 
-    if (costMinor > priceMinor) return { ok: false, error: "Costo no puede ser mayor que precio." };
+    if (costParsed.minor > priceParsed.minor) {
+      return { ok: false, error: "Costo no puede ser mayor que precio." };
+    }
 
     const title = state.title.trim() || null;
-    
+
     if (args.mode === "create" && !state.imageFile) {
       return { ok: false, error: "Imagen requerida para la variante." };
     }
@@ -97,20 +106,13 @@ export function useVariantForm(args: {
         barcode: barcodeNorm,
         title,
         unit: state.unit as VariantUnit,
-        attributes: null,            // ✅ always null for now
-        priceBaseMinor: priceMinor,
-        costBaseMinor: costMinor,
+        attributes: null,
+        priceBaseMinor: priceParsed.minor,
+        costBaseMinor: costParsed.minor,
         imageFile: state.imageFile,
       },
     };
-
   }
 
-  return {
-    state,
-    patch,
-    error,
-    setError,
-    validate,
-  };
+  return { state, patch, validate };
 }

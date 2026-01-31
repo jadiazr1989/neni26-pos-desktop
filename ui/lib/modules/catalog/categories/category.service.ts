@@ -1,12 +1,12 @@
 // src/modules/catalog/categories/category.service.ts
 import type { CategoryPort, ListParams } from "./category.port";
 import { CategoryHttpAdapter } from "./category.http";
-import type { CreateCategoryInput, UpdateCategoryInput, CategoryDTO } from "./category.dto";
+import type { CreateCategoryInput, UpdateCategoryInput, CategoryDTO, PosCategoryDTO } from "./category.dto";
 
 export type ListCategoriesQuery = ListParams;
 
 class CategoryService {
-  constructor(private readonly port: CategoryPort) {}
+  constructor(private readonly port: CategoryPort) { }
 
   async list(q: ListCategoriesQuery = {}): Promise<CategoryDTO[]> {
     const res = await this.port.list(q);
@@ -34,6 +34,18 @@ class CategoryService {
   async uploadImage(id: string, file: File): Promise<void> {
     await this.port.uploadImage(id, file);
   }
+
+  async listForPos(params: {
+    inStock?: boolean;
+    limit?: number;
+    cursor?: string | null;
+  }): Promise<{
+    rows: PosCategoryDTO[];
+    nextCursor: string | null;
+  }> {
+    return this.port.listForPos(params);
+  }
+
 }
 
 export const categoryService = new CategoryService(new CategoryHttpAdapter());

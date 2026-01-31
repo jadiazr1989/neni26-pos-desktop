@@ -2,14 +2,18 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import * as React from "react";
 
 import { useApiConnectivity } from "@/components/features/dashboard/hooks/useApiConnectivity";
-import { getActiveCashSessionOrThrow } from "@/components/features/pos/cash/services/getActiveCashSessionOrThrow";
+import { cashService } from "@/lib/modules/cash/cash.service";
 import { useCashStore } from "@/stores/cash.store";
 import { useTerminalStore } from "@/stores/terminal.store";
 
 type GateReason = "OFFLINE" | "NO_TERMINAL" | "NO_ACTIVE_CASH" | "CHECKING" | "OK";
+
+function isTerminalRequiredRoute(pathname: string): boolean {
+  return pathname === "/terminal-required" || pathname.startsWith("/terminal-required/");
+}
 
 export function usePosCashierGate(pollMs = 15000) {
   const router = useRouter();
@@ -24,11 +28,11 @@ export function usePosCashierGate(pollMs = 15000) {
 
   const { apiStatus, lastPingAt } = useApiConnectivity(pollMs);
 
-  const [checkingCash, setCheckingCash] = useState(false);
-  const [checkedOnce, setCheckedOnce] = useState(false);
+  const [checkingCash, setCheckingCash] = React.useState(false);
+  const [checkedOnce, setCheckedOnce] = React.useState(false);
 
   // 1) hydrate terminal (una vez)
-  useEffect(() => {
+  React.useEffect(() => {
     void hydrateTerminal();
   }, [hydrateTerminal]);
 
@@ -37,19 +41,23 @@ export function usePosCashierGate(pollMs = 15000) {
   const online = apiStatus === "online";
   const offline = apiStatus === "offline";
 
-  // ✅ 2) NO redirijas hasta que hydrated=true
-  useEffect(() => {
-    if (!hydrated) return; // <- CLAVE
-    if (pathname.startsWith("/admin/dashboard")) return; // evita loops raros si compartes shell
-    if (!terminalReady) router.replace("/admin/dashboard"); // o "/terminal-required"
+  // ✅ 2) Redirect POS si NO hay terminal
+  React.useEffect(() => {
+    if (!hydrated) return;
+    if (terminalReady) return;
+
+    // evita loop: si ya estás en terminal-required, no redirijas
+    if (isTerminalRequiredRoute(pathname)) return;
+
+    router.replace("/terminal-required");
   }, [hydrated, terminalReady, router, pathname]);
 
-  // 3) check cash
-  useEffect(() => {
+  // 3) check cash (usa cashService.active())
+  React.useEffect(() => {
     let mounted = true;
 
-    async function run() {
-      if (!hydrated) return;        // <- CLAVE (no checks antes de hidratar)
+    async function run(): Promise<void> {
+      if (!hydrated) return;
       if (!terminalReady) return;
       if (!online) return;
 
@@ -60,9 +68,12 @@ export function usePosCashierGate(pollMs = 15000) {
 
       setCheckingCash(true);
       try {
-        const dto = await getActiveCashSessionOrThrow({ terminalId: xTerminalId! });
+        const active = await cashService.active(); // CashSessionDTO | null
         if (!mounted) return;
-        if (dto.cashSession) setActiveCash(dto.cashSession);
+
+        if (active) {
+          await setActiveCash(active);
+        }
         setCheckedOnce(true);
       } catch {
         if (mounted) setCheckedOnce(true);
@@ -75,9 +86,9 @@ export function usePosCashierGate(pollMs = 15000) {
     return () => {
       mounted = false;
     };
-  }, [hydrated, terminalReady, online, cashOpen, xTerminalId, setActiveCash]);
+  }, [hydrated, terminalReady, online, cashOpen, setActiveCash]);
 
-  const reason: GateReason = useMemo(() => {
+  const reason: GateReason = React.useMemo(() => {
     if (!hydrated) return "CHECKING";
     if (!terminalReady) return "NO_TERMINAL";
     if (offline) return "OFFLINE";

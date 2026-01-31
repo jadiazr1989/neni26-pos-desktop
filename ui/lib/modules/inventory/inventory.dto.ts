@@ -18,6 +18,9 @@ export type WarehouseStockRowDTO = {
     imageUrl: string | null;
     isActive: boolean;
     product: ProdutcParent;
+    unit: string;              // ✅
+    priceBaseMinor: number;    // ✅
+    costBaseMinor: number;     // ✅
   };
 };
 

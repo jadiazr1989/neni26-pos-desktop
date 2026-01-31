@@ -7,9 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { SplashGate } from "@/components/shared/SplashGate";
 import { useTerminalStore } from "@/stores/terminal.store";
 
-type Role = "ADMIN" | "MANAGER" | "CASHIER" | string;
+type Role = "ADMIN" | "MANAGER" | "CASHIER";
 
-function sleep(ms: number) {
+function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
@@ -35,19 +35,15 @@ export default function RedirectClient({ role }: { role: Role }) {
 
     const run = async () => {
       setSubtitle("Verificando acceso…");
-
-      // ✅ UX: mínimo 1.2s de splash
       await sleep(1200);
 
       const isAdmin = role === "ADMIN" || role === "MANAGER";
 
       if (isAdmin) {
-        // admin: si no hay terminal, setup
-        router.replace(xTerminalId ? "/admin" : "/admin/dashboard");
+        router.replace(xTerminalId ? "/admin" : "/admin/device");
         return;
       }
 
-      // cashier: necesita terminal sí o sí
       router.replace(xTerminalId ? "/pos" : "/terminal-required");
     };
 

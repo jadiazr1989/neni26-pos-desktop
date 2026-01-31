@@ -1,58 +1,37 @@
+// components/features/pos/shell/PosShell.tsx
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import * as React from "react";
 import type { JSX, ReactNode } from "react";
-import { useCallback, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
-import type { CashCountReportDTO, CurrencyCode, MeUser } from "@/lib/cash.types";
-import { useCashStore } from "@/stores/cash.store";
-import { useSessionStore } from "@/stores/session.store";
-
-import { CashOpenGateModal } from "@/components/features/pos/cash/ui/CashOpenGateModal";
-import { usePosCashierGate } from "../cash/hooks/usePosCashierGate";
+import type { MeUser } from "@/lib/cash.types";
+import { notify } from "@/lib/notify/notify";
 
 import { usePosSaleStore } from "@/stores/posSale.store";
-import { PosBottomBar } from "./ui/PosBottomBar";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
-import {
-  closeCashSession,
-  countCashSession,
-} from "@/components/features/pos/cash/services/cashSession.actions";
-
-import { usePosShellOverlays } from "@/stores/posShellOverlays.store";
-import { CashCountCloseModal } from "../cash/ui/CashCountCloseModal";
-
-import { CashSessionMenu } from "../cash/ui/CashSessionMenu";
 import { PosShellTopBar } from "./ui/PosShellTopBar";
 import { PosStatusBar } from "./ui/PosStatusBar";
+import { PosBottomBar } from "./ui/PosBottomBar";
+import { CashSessionMenu } from "../cash/ui/CashSessionMenu";
+import { CashCountCloseModal } from "../cash/ui/CashCountCloseModal";
+import { CashOpenGateModal } from "@/components/features/pos/cash/ui/CashOpenGateModal";
+
+import { usePosShellCashVm } from "./hooks/usePosShellCashVm";
 
 function CashBadgeDot(props: { show: boolean }): JSX.Element | null {
   if (!props.show) return null;
-  return (
-    <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background" />
-  );
+  return <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background" />;
 }
 
-export function PosShell(props: {
-  initialUser: MeUser;
-  children: ReactNode;
-}): JSX.Element {
+export function PosShell(props: { initialUser: MeUser; children: ReactNode }): JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
 
-  const setUser = useSessionStore((s) => s.setUser);
-  const setStatus = useSessionStore((s) => s.setStatus);
-  const user = useSessionStore((s) => s.user);
+  const vm = usePosShellCashVm({ initialUser: props.initialUser, pollMs: 15000 });
 
-  const gate = usePosCashierGate(15000);
-
-  // overlays
-  const cashModalOpen = usePosShellOverlays((s) => s.cashModalOpen);
-  const cashMode = usePosShellOverlays((s) => s.cashMode);
-  const openCashModal = usePosShellOverlays((s) => s.openCashModal);
-  const closeCashModal = usePosShellOverlays((s) => s.closeCashModal);
-
-  // sale state
+  // Sale store (demo)
   const items = usePosSaleStore((s) => s.items);
   const totals = usePosSaleStore((s) => s.totals);
   const saleStatus = usePosSaleStore((s) => s.status);
@@ -60,92 +39,29 @@ export function PosShell(props: {
   const clear = usePosSaleStore((s) => s.clear);
   const checkout = usePosSaleStore((s) => s.checkout);
 
-  const cashActive = useCashStore((s) => s.active);
-  const setCashActive = useCashStore((s) => s.setActive);
-
-  useEffect(() => {
-    setUser(props.initialUser);
-    setStatus("authenticated");
-  }, [props.initialUser, setUser, setStatus]);
-
-  // navegación única cuando ya está listo
-  useEffect(() => {
-    if (!gate.readyToSell) return;
-    if (pathname.startsWith("/pos/sales/new")) return;
-    router.replace("/pos/sales/new");
-  }, [gate.readyToSell, pathname, router]);
-
   const showBottomBar = pathname.startsWith("/pos/sales");
   const paying = saleStatus === "checking_out";
-
-  const onCancelSale = useCallback(() => {
-    if (items.length === 0) return;
-    const ok = window.confirm("¿Cancelar la orden actual?");
-    if (ok) clear();
-  }, [items.length, clear]);
-
-  const cashSessionId = cashActive?.id ?? null;
-  const terminalId = gate.xTerminalId;
-  const readyToSell = gate.readyToSell;
-
-  const onPay = useCallback(async () => {
-    if (!readyToSell) return;
-    if (!terminalId) return;
-    if (!cashSessionId) return;
-    if (!canPay()) return;
-    await checkout({ terminalId, cashSessionId });
-  }, [readyToSell, terminalId, cashSessionId, canPay, checkout]);
-
-  const onCountCash = useCallback(
-    async (
-      counted: Partial<Record<CurrencyCode, number>>
-    ): Promise<{ report: CashCountReportDTO }> => {
-      if (!terminalId || !cashSessionId) {
-        throw new Error("Missing terminalId or cashSessionId");
-      }
-      return await countCashSession({ terminalId, cashSessionId, counted });
-    },
-    [terminalId, cashSessionId]
-  );
-
-  // onCloseCash queda igual (Promise<void>)
-  const onCloseCash = useCallback(
-    async (counted: Partial<Record<CurrencyCode, number>>): Promise<void> => {
-      if (!terminalId || !cashSessionId) return;
-
-      const ok = window.confirm("¿Seguro? Esto genera Z y cierra la caja.");
-      if (!ok) return;
-
-      await closeCashSession({ terminalId, cashSessionId, counted });
-
-      setCashActive(null);
-      router.replace("/pos");
-    },
-    [terminalId, cashSessionId, setCashActive, router]
-  );
-
-
-  const role = (user?.role ?? "CASHIER") as "ADMIN" | "MANAGER" | "CASHIER";
   const itemsInProgress = items.length > 0;
 
-  // ✅ confirm extra ANTES de abrir el modal CLOSE (sin ensuciar CashSessionMenu)
-  const onRequestOpenCloseModal = useCallback(() => {
-    const ok = window.confirm("Vas a cerrar caja (Z). ¿Continuar?");
-    if (!ok) return;
-    openCashModal("CLOSE");
-  }, [openCashModal]);
+  // cancel sale confirm (UI)
+  const [cancelSaleOpen, setCancelSaleOpen] = React.useState(false);
+
+  const onRequestCancelSale = React.useCallback(() => {
+    if (items.length === 0) return;
+    setCancelSaleOpen(true);
+  }, [items.length]);
 
   const rightSlot = (
     <div className="relative">
-      <CashBadgeDot show={!gate.cashOpen} />
+      <CashBadgeDot show={!vm.gate.cashOpen} />
       <CashSessionMenu
         variant="icon"
-        role={role}
-        offline={gate.offline}
-        cashOpen={gate.cashOpen}
+        role={vm.role}
+        offline={vm.gate.offline}
+        cashOpen={vm.gate.cashOpen}
         itemsInProgress={itemsInProgress}
-        onOpenCount={() => openCashModal("COUNT")}
-        onOpenClose={onRequestOpenCloseModal}
+        onOpenCount={vm.onOpenCountModal}
+        onOpenClose={vm.onRequestOpenCloseModal}
         onGoAdmin={() => router.replace("/admin")}
       />
     </div>
@@ -157,9 +73,9 @@ export function PosShell(props: {
         area="pos"
         centerSlot={
           <PosStatusBar
-            offline={gate.offline}
-            terminalReady={gate.terminalReady}
-            cashOpen={gate.cashOpen}
+            offline={vm.gate.offline}
+            terminalReady={vm.gate.terminalReady}
+            cashOpen={vm.gate.cashOpen}
             compact
           />
         }
@@ -170,42 +86,68 @@ export function PosShell(props: {
         <div className="h-full min-h-0">{props.children}</div>
       </main>
 
-      {showBottomBar && gate.readyToSell && (
+      {showBottomBar && vm.gate.readyToSell && (
         <PosBottomBar
-          role={role}
-          offline={gate.offline}
-          cashOpen={gate.cashOpen}
+          role={vm.role}
+          offline={vm.gate.offline}
+          cashOpen={vm.gate.cashOpen}
           itemsCount={items.length}
           total={totals.total}
           paying={paying}
           payDisabled={!canPay()}
-          onPay={onPay}
-          onCancelSale={onCancelSale}
-          onHoldSale={() => alert("hold (placeholder)")}
-          onNote={() => alert("nota (placeholder)")}
-          onCustomer={() => alert("cliente (placeholder)")}
+          onPay={async () => {
+            if (!vm.gate.readyToSell) return;
+            if (!vm.cashSessionId) return;
+            if (!canPay()) return;
+
+            if (!vm.xTerminalId) {
+              notify.warning({ title: "Terminal no listo", description: "Falta terminalId para procesar el pago." });
+              return;
+            }
+
+            await checkout({ terminalId: vm.xTerminalId, cashSessionId: vm.cashSessionId });
+          }}
+          onCancelSale={onRequestCancelSale}
+          onHoldSale={() => notify.warning({ title: "Hold", description: "Pendiente de implementar." })}
+          onNote={() => notify.warning({ title: "Nota", description: "Pendiente de implementar." })}
+          onCustomer={() => notify.warning({ title: "Cliente", description: "Pendiente de implementar." })}
         />
       )}
 
-      {/* ✅ OVERLAYS GLOBALES */}
+      {/* Cash overlays */}
       <CashCountCloseModal
-        open={cashModalOpen}
-        mode={cashMode}
-        onClose={closeCashModal}
-        onCount={onCountCash}
-        onCloseCash={onCloseCash}
+        open={vm.cashModalOpen}
+        mode={vm.cashMode}
+        onClose={vm.closeCashModal}
+        onCount={vm.onCountCash}
+        onCloseCash={vm.onCloseCash}
       />
 
       <CashOpenGateModal
-        open={gate.openModal}
-        reason={gate.reason}
-        canSubmit={gate.canSubmit}
-        terminalId={gate.xTerminalId}
-        role={role}
-        onRefresh={() => window.location.reload()}
-        onGoAdmin={() => router.replace("/admin")}
+        open={vm.gate.openModal}
+        reason={vm.gate.reason}
+        canSubmit={vm.gate.canSubmit}
+        terminalId={vm.gate.xTerminalId}
+        role={vm.role}
+        onRefresh={vm.onRefresh}
+        onGoAdmin={vm.onGoAdmin}
       />
 
+      {/* Confirm: cancel sale */}
+      <ConfirmDialog
+        open={cancelSaleOpen}
+        onOpenChange={setCancelSaleOpen}
+        title="Cancelar orden"
+        description="¿Cancelar la orden actual? Se perderán los items en curso."
+        confirmText="Cancelar orden"
+        cancelText="Seguir vendiendo"
+        destructive
+        onConfirm={async () => {
+          clear();
+          setCancelSaleOpen(false);
+          notify.success({ title: "Orden cancelada", description: "Se limpió la venta actual." });
+        }}
+      />
     </div>
   );
 }

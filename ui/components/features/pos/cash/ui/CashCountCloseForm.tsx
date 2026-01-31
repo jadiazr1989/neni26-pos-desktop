@@ -1,15 +1,14 @@
 "use client";
 
-import * as React from "react";
-import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Calculator, Lock, X } from "lucide-react";
-
 import { ButtonSpinner } from "@/components/ui/button-spinner";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calculator, Lock, X } from "lucide-react";
+import * as React from "react";
 
-type CashMode = "COUNT" | "CLOSE";
+import type { CashMode } from "@/lib/modules/cash/cash.dto";
 
 export function CashCountCloseForm(props: {
   mode: CashMode;
@@ -21,7 +20,7 @@ export function CashCountCloseForm(props: {
   onCup: (v: string) => void;
   onUsd: (v: string) => void;
 
-  onSubmit: () => void;          // ✅ submit ya valida en panel
+  onSubmit: () => void;
   onCancel: () => void;
 }): React.JSX.Element {
   const isClose = props.mode === "CLOSE";
@@ -34,9 +33,7 @@ export function CashCountCloseForm(props: {
             {isClose ? "Cierre de caja (Z)" : "Arqueo de caja (COUNT)"}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
-            {isClose
-              ? "Ingresa lo contado y confirma. Esto cierra la sesión."
-              : "Ingresa lo contado. Esto NO cierra la caja."}
+            {isClose ? "Ingresa lo contado y confirma. Esto cierra la sesión." : "Ingresa lo contado. Esto NO cierra la caja."}
           </div>
         </div>
 
@@ -61,7 +58,7 @@ export function CashCountCloseForm(props: {
             value={props.cup}
             onChange={(e) => props.onCup(e.target.value)}
             disabled={props.loading}
-            className="h-11"
+            className="h-10"
           />
         </div>
 
@@ -73,7 +70,7 @@ export function CashCountCloseForm(props: {
             value={props.usd}
             onChange={(e) => props.onUsd(e.target.value)}
             disabled={props.loading}
-            className="h-11"
+            className="h-10"
           />
         </div>
       </div>

@@ -28,7 +28,7 @@ export function LoginScreen({
           {/* Panel izquierdo (solo desktop) */}
           <div className="hidden md:block space-y-6">
             <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-2xl border bg-card grid place-items-center font-semibold">
+              <div className="h-10 w-11 rounded-2xl border bg-card grid place-items-center font-semibold">
                 N
               </div>
               <div>

@@ -7,6 +7,7 @@ import { ArrowRightLeft, LayoutGrid, LogOut, Shield, UserRound } from "lucide-re
 import { useRouter } from "next/navigation";
 import { useLogout } from "../../login/hooks";
 import { TerminalWarningBanner } from "./TerminalWarningBanner";
+import { FontSizeDropdown } from "@/components/shared/FontSizeDropdown";
 
 export function ShellTopBar({ area }: { area: "pos" | "admin" }) {
   const router = useRouter();
@@ -61,6 +62,7 @@ export function ShellTopBar({ area }: { area: "pos" | "admin" }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <FontSizeDropdown />
             {area === "admin" && (
               <Button variant="secondary" className="h-10" disabled={!hasTerminal} onClick={onGoPos}>
                 <ArrowRightLeft className="mr-2 size-4" />

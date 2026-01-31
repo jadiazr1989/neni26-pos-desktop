@@ -30,7 +30,6 @@ export type ConfirmDialogProps = {
 export function ConfirmDialog(p: ConfirmDialogProps) {
   const destructive = p.destructive ?? true;
 
-  // ✅ lock extra para evitar doble confirm incluso si busy llega tarde
   const lockRef = React.useRef(false);
 
   async function handleConfirm() {
@@ -49,12 +48,12 @@ export function ConfirmDialog(p: ConfirmDialogProps) {
     <AlertDialog
       open={p.open}
       onOpenChange={(v) => {
-        // ✅ si está busy, no permitir cerrar
         if (p.busy) return;
         p.onOpenChange(v);
       }}
     >
-      <AlertDialogContent>
+      {/* ✅ CLAVE: subir z-index por encima del modal POS z-[120] */}
+      <AlertDialogContent className="z-[220]">
         <AlertDialogHeader>
           <AlertDialogTitle>{p.title}</AlertDialogTitle>
           {p.description ? <AlertDialogDescription>{p.description}</AlertDialogDescription> : null}
@@ -75,8 +74,10 @@ export function ConfirmDialog(p: ConfirmDialogProps) {
               icon={destructive ? <Trash2 className="size-4" /> : undefined}
             >
               {p.busy
-                ? (destructive ? "Eliminando..." : "Procesando...")
-                : (p.confirmText ?? (destructive ? "Eliminar" : "Confirmar"))}
+                ? destructive
+                  ? "Eliminando..."
+                  : "Procesando..."
+                : p.confirmText ?? (destructive ? "Eliminar" : "Confirmar")}
             </ButtonSpinner>
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -8,6 +8,7 @@ import { EntityAvatar } from "@/components/shared/EntityAvatar";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Pencil } from "lucide-react";
 import { displayVariantTitle } from "@/lib/utils";
+import { minorToMoneyString } from "@/lib/money/money";
 
 export function VariantsTable(props: {
   rows: ProductVariantDTO[];
@@ -57,14 +58,15 @@ export function VariantsTable(props: {
         key: "price",
         header: "Precio",
         className: "col-span-2 text-xs text-muted-foreground",
-        render: (v) => String(v.priceBaseMinor),
+        render: (v) => minorToMoneyString(v.priceBaseMinor, { scale: 2 }),
       },
       {
         key: "cost",
         header: "Costo",
         className: "col-span-2 text-xs text-muted-foreground",
-        render: (v) => String(v.costBaseMinor),
+        render: (v) => minorToMoneyString(v.costBaseMinor, { scale: 2 }),
       },
+
       {
         key: "active",
         header: "Estado",

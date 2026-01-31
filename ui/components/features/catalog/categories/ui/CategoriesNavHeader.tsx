@@ -1,11 +1,10 @@
 // src/modules/catalog/categories/ui/tree/CategoriesNavHeader.tsx
 "use client";
 
-import * as React from "react";
-import { CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CategoryBreadcrumbs } from "./CategoryBreadcrumbs";
+import { CardTitle } from "@/components/ui/card";
 import type { Breadcrumb } from "@/lib/modules/catalog/categories/category.dto";
+import { CategoryBreadcrumbs } from "./CategoryBreadcrumbs";
 
 export function CategoriesNavHeader(props: {
   title?: string;
@@ -21,7 +20,7 @@ export function CategoriesNavHeader(props: {
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <CardTitle className="text-base">{props.title ?? "Navegación"}</CardTitle>
+      <CardTitle className="">{props.title ?? "Navegación"}</CardTitle>
 
       <div className="flex items-center gap-2">
         <CategoryBreadcrumbs

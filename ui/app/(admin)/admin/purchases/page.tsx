@@ -1,6 +1,6 @@
 "use client";
-import { AdminDashboardScreen } from "@/components/features/admin/dashboard";
+import { PurchasesScreen } from "@/components/features";
 
 export default function PurchasesPage() {
-  return <AdminDashboardScreen />;
+  return <PurchasesScreen />;
 }
