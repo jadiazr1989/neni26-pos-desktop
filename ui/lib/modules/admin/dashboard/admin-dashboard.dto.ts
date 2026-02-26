@@ -1,70 +1,385 @@
 // src/lib/modules/admin/dashboard/admin-dashboard.dto.ts
+// ✅ Aligned with backend: AdminDashboardDataV3 (Enterprise)
+
+import { SellUnit } from "../../catalog/products/product.dto";
+
 export type AdminDashboardRange = "today" | "7d" | "30d";
 
 export type AdminDashboardQuery = {
   range?: AdminDashboardRange;
+  warehouseId?: string; // null/undefined => ALL warehouses in store scope (backend)
 };
 
-export type AdminDashboardKpis = {
-  salesNetBaseMinor: number;
-  salesGrossBaseMinor: number;
-  refundsBaseMinor: number;
-  tickets: number;
-  avgTicketBaseMinor: number;
+export type MoneyStr = string;
+
+export type DashboardScopeDTO = {
+  storeId: string;
+  warehouseId: string | null; // null => ALL
 };
 
-export type DashboardCash = {
+export type DashboardPeriodDTO = {
+  range: AdminDashboardRange;
+  from: string; // ISO
+  to: string;   // ISO (exclusive)
+  tz: string;
+};
+
+// -------------------- Health --------------------
+
+export type DashboardHealthStatus = "OK" | "WARNING" | "CRITICAL";
+
+export type DashboardHealthDriverKey =
+  | "grossMarginPct"
+  | "refundRate"
+  | "discountRate"
+  | "cashVariance"
+  | "inventoryRuptures"
+  | "inventoryLowStock"
+  | "inventoryOverstock"
+  | "inventorySlowMoving"
+  | "openOrdersAging"
+  | "pendingAdjustments"
+  | "openCashSessions";
+
+export type DashboardHealthDriverDTO = {
+  key: DashboardHealthDriverKey;
+  label: string;
+  severity: "info" | "warning" | "critical";
+  scoreImpact: number; // -100..0
+  meta?: Record<string, string | number | boolean | null>;
+};
+
+export type DashboardHealthDTO = {
+  score: number; // 0..100
+  status: DashboardHealthStatus;
+  drivers: DashboardHealthDriverDTO[]; // top drivers (max 8)
+};
+
+// -------------------- Executive KPIs --------------------
+
+export type DashboardKpisDTO = {
+  ticketsCount: number;
+
+  itemsCount: number;
+  itemsPerTicketBps: number; // items/ticket * 10000
+
+  grossSalesBaseMinor: MoneyStr;
+  refundsBaseMinor: MoneyStr;
+  refundsCount: number;
+  refundRateBps: number; // refunds/gross * 10000
+
+  netSalesBaseMinor: MoneyStr;
+
+  avgTicketBaseMinor: MoneyStr;
+  netSalesPerDayBaseMinor: MoneyStr;
+
+  taxBaseMinor: MoneyStr;
+  taxRateBps: number; // tax/gross * 10000
+
+  discountsBaseMinor: MoneyStr;
+  discountRateBps: number; // discounts/gross * 10000
+
+  cogsBaseMinor: MoneyStr;
+  grossMarginBaseMinor: MoneyStr;
+  grossMarginPctBps: number; // margin/net * 10000
+};
+
+// -------------------- Cash control --------------------
+
+export type DashboardCashDrawerDTO = {
   hasActiveSession: boolean;
   activeSessionId: string | null;
   openedAt: string | null;
   terminalId: string | null;
   warehouseId: string | null;
+
+  cashSalesBaseMinor: MoneyStr;
+  cashRefundsBaseMinor: MoneyStr;
+  expensesBaseMinor: MoneyStr;
+
+  netCashBaseMinor: MoneyStr;
+
+  cashShareBps: number;
+  cashSessionsClosedCount: number;
+  cashSessionsOpenCount: number;
+  avgSessionDurationMinutes: number;
+
+  cashVarianceMaxAbsMinor: number;
+  cashVarianceTotalAbsMinor: number;
+  cashVarianceCount: number;
 };
 
-export type DashboardPaymentsByMethod = Array<{
-  method: "CASH" | "CARD" | "TRANSFER" | "OTHER";
-  amountBaseMinor: number;
-  count: number;
-}>;
+// -------------------- Payments mix --------------------
 
-export type DashboardTopProduct = {
+export type DashboardPaymentsByMethodRowDTO = {
+  method: "CASH" | "CARD" | "TRANSFER" | "OTHER";
+  amountBaseMinor: MoneyStr;
+  count: number;
+  pctBps: number; // 0..10000
+};
+
+export type DashboardPaymentsByMethodDTO = DashboardPaymentsByMethodRowDTO[];
+
+// -------------------- Trend --------------------
+
+export type DashboardTrendPointDTO = {
+  bucket: "day" | "hour";
+  day: string;
+
+  grossSalesBaseMinor: MoneyStr;
+  refundsBaseMinor: MoneyStr;
+  refundsCount: number;
+
+  discountsBaseMinor: MoneyStr;
+
+  netSalesBaseMinor: MoneyStr;
+
+  cogsBaseMinor: MoneyStr;
+  grossMarginBaseMinor: MoneyStr;
+  grossMarginPctBps: number;
+
+  ticketsCount: number;
+  itemsCount: number;
+
+  avgTicketBaseMinor: MoneyStr;
+};
+
+// -------------------- Products / Profitability --------------------
+
+export type DashboardTopProductDTO = {
   variantId: string;
-  productId: string; 
   sku: string;
   title: string;
   productName: string;
-  qty: number;
-  revenueBaseMinor: number;
+
+  qtyBaseMinor: string;
+  displayUnit: SellUnit;
+  qtyDisplay: string;
+
+  revenueBaseMinor: string;
+  profitBaseMinor: string;
+  marginPctBps: number; // profit/revenue * 10000
 };
 
-export type DashboardTrendPoint = {
-  date: string; // YYYY-MM-DD
-  netBaseMinor: number;
-  tickets: number;
+export type DashboardProfitabilityRowDTO = DashboardTopProductDTO;
+
+export type DashboardProfitabilityDTO = {
+  topProfitProducts: DashboardProfitabilityRowDTO[];
+  topMarginPctProducts: DashboardProfitabilityRowDTO[];
+  highRevenueLowMargin: DashboardProfitabilityRowDTO[];
 };
 
-export type AdminDashboardData = {
-  range: AdminDashboardRange;
-  from: string;
-  to: string;
+// -------------------- Inventory intelligence --------------------
 
-  scope: {
-    storeId: string;
-    warehouseId: string | null;
+export type DashboardInventoryKpisDTO = {
+  variantsCount: number;
+
+  onHandCount: number;
+  outOfStockCount: number;
+
+  reservedQtyTotal: number;
+  availableQtyTotal: number;
+
+  lowStockCount: number;
+
+  reservedVariantsCount: number;
+  reservableVariantsCount: number;
+
+  onHandValueCostBaseMinor: MoneyStr;
+  availableValueCostBaseMinor: MoneyStr;
+  reservedValueCostBaseMinor: MoneyStr;
+
+  avgDaysOfCover: number;
+  lowCoverCount: number;
+  overCoverCount: number;
+};
+
+export type DashboardInventoryWeaknessesDTO = {
+  rupturesCount: number;
+  overstockCount: number;
+  slowMovingCount: number;
+  badThresholdsCount: number;
+
+  overstockValueCostBaseMinor: MoneyStr;
+  slowMovingValueCostBaseMinor: MoneyStr;
+
+  rupturesImpactEstBaseMinor: MoneyStr;
+  lowStockImpactEstBaseMinor: MoneyStr;
+};
+
+export type DashboardInventoryWeaknessConfigDTO = {
+  lookbackDays: number;
+  overstockThreshold: number;
+  slowMovingSoldThreshold: number;
+
+  lowCoverDays: number;
+  overCoverDays: number;
+};
+
+export type DashboardInventoryLowStockRowDTO = {
+  variantId: string;
+  sku: string;
+  title: string;
+  productName: string;
+
+  quantity: number;
+  reservedQuantity: number;
+  available: number;
+
+  threshold: number;
+
+  estDaysOfCover: number | null;
+  estDailySold: number | null;
+};
+
+// -------------------- Purchases --------------------
+
+export type DashboardPurchasesKpisDTO = {
+  draftCount: number;
+  orderedCount: number;
+  receivedCount: number;
+
+  receivedInRangeCount: number;
+
+  openOrderedCount: number;
+  openOrderedValueBaseMinor: MoneyStr;
+
+  receivedValueBaseMinor: MoneyStr;
+
+  openOrderedOver7dCount: number;
+  openOrderedOver14dCount: number;
+  avgOpenOrderAgeDays: number;
+
+  topSuppliersBySpend?: Array<{
+    supplierId: string;
+    supplierName: string;
+    spendBaseMinor: MoneyStr;
+  }>;
+
+  avgSupplierLeadTimeDays?: number | null;
+};
+
+// -------------------- Adjustments --------------------
+
+export type DashboardAdjustmentsKpisDTO = {
+  pendingCount: number;
+  approvedInRangeCount: number;
+  rejectedInRangeCount: number;
+
+  pendingOver24hCount: number;
+  pendingOver72hCount: number;
+};
+
+// -------------------- Operators --------------------
+
+export type DashboardOperatorRowDTO = {
+  userId: string;
+  username: string;
+  role: "ADMIN" | "MANAGER" | "CASHIER";
+
+  ticketsCount: number;
+  itemsCount: number;
+
+  grossSalesBaseMinor: MoneyStr;
+  discountsBaseMinor: MoneyStr;
+  refundsBaseMinor: MoneyStr;
+  refundsCount: number;
+
+  netSalesBaseMinor: MoneyStr;
+  avgTicketBaseMinor: MoneyStr;
+
+  voidCount: number;
+  voidRateBps: number;
+  discountRateBps: number;
+  refundRateBps: number;
+};
+
+// -------------------- Alerts & Actions --------------------
+
+export type DashboardAlertSeverity = "info" | "warning" | "critical";
+
+export type DashboardAlertDTO = {
+  id: string;
+  severity: DashboardAlertSeverity;
+  title: string;
+  description: string;
+  meta?: Record<string, string | number | boolean | null>;
+};
+
+export type DashboardActionDTO = {
+  id: string;
+  severity: DashboardAlertSeverity;
+  title: string;
+  impactBaseMinor: MoneyStr;
+  ctaLabel: string;
+  ctaRoute: string;
+  meta?: Record<string, string | number | boolean | null>;
+};
+
+// -------------------- Comparison --------------------
+
+export type DashboardComparisonDTO = {
+  prevFrom: string;
+  prevTo: string;
+
+  netSalesDeltaBaseMinor: MoneyStr;
+  netSalesDeltaPctBps: number;
+
+  ticketsDelta: number;
+  itemsDelta: number;
+
+  avgTicketDeltaBaseMinor: MoneyStr;
+
+  refundsDeltaBaseMinor: MoneyStr;
+  refundsDeltaCount: number;
+  refundRateDeltaBps: number;
+
+  discountsDeltaBaseMinor: MoneyStr;
+  discountRateDeltaBps: number;
+
+  cogsDeltaBaseMinor: MoneyStr;
+
+  grossMarginDeltaBaseMinor: MoneyStr;
+  grossMarginDeltaPctBps: number;
+
+  itemsPerTicketDeltaBps: number;
+};
+
+// -------------------- Root --------------------
+
+export type AdminDashboardDataV2 = {
+  period: DashboardPeriodDTO;
+  scope: DashboardScopeDTO;
+
+  health: DashboardHealthDTO;
+
+  kpis: DashboardKpisDTO;
+  cash: DashboardCashDrawerDTO;
+
+  paymentsByMethod: DashboardPaymentsByMethodDTO;
+
+  trend: DashboardTrendPointDTO[];
+
+  profitability: DashboardProfitabilityDTO;
+
+  inventory: {
+    kpis: DashboardInventoryKpisDTO;
+    lowStock: DashboardInventoryLowStockRowDTO[];
+    weaknesses: DashboardInventoryWeaknessesDTO;
+    weaknessesConfig: DashboardInventoryWeaknessConfigDTO;
   };
 
-  kpis: AdminDashboardKpis;
-  cash: DashboardCash;
+  purchases: DashboardPurchasesKpisDTO;
+  adjustments: DashboardAdjustmentsKpisDTO;
 
-  paymentsByMethod: DashboardPaymentsByMethod;
-  topProducts: DashboardTopProduct[];
+  operators: DashboardOperatorRowDTO[];
 
-  trend: DashboardTrendPoint[];
+  comparison: DashboardComparisonDTO;
 
-  purchases: { draft: number; ordered: number; received: number; receivedInRange: number };
-  adjustments: { pending: number };
+  alerts: DashboardAlertDTO[];
+  actions: DashboardActionDTO[];
 };
 
 export type GetAdminDashboardResponse = {
-  dashboard: AdminDashboardData;
+  dashboard: AdminDashboardDataV2;
 };

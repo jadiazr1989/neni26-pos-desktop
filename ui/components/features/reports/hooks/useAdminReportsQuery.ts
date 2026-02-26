@@ -1,4 +1,3 @@
-// src/modules/admin/reports/ui/hooks/useAdminCashReports.ts
 "use client";
 
 import * as React from "react";
@@ -12,37 +11,28 @@ import type {
   ReportsDailyRowDTO,
   ReportsOverviewDTO,
   ListCashSessionsQuery,
+  ReportsAlertsDTO,
 } from "@/lib/modules/admin/reports";
 
 import type { DatePreset } from "../ui/AdminReportsFilter";
 
-type RangeISO = { from: string; to: string };
+type TabKey = "overview" | "sessions";
+type RangeYmd = { from: string; to: string }; // [from, to) (to exclusive)
 
 export type AdminReportsFilters = {
   warehouseId: string | null;
   terminalId: string | null;
-  status: CashSessionStatusFilter;
   preset: DatePreset;
-  from: string | null; // yyyy-mm-dd (cuando preset = "RANGO")
-  to: string | null;   // yyyy-mm-dd (cuando preset = "RANGO")
+  from: string | null; // inclusive day when RANGO
+  to: string | null; // inclusive day when RANGO
 };
 
 type Opts = {
-  initialWarehouseId?: string | null;
-  initialTerminalId?: string | null;
-  initialStatus?: CashSessionStatusFilter;
-  initialPreset?: DatePreset;
-  initialFrom?: string | null;
-  initialTo?: string | null;
+  tab: TabKey;
   initialTake?: number;
-
-  setLoading?: (v: boolean) => void;
-
   warehouseOptions?: Array<{ value: string; label: string }>;
   terminalOptions?: Array<{ value: string; label: string }>;
 };
-
-type RowId = { id: string };
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : "Error inesperado";
@@ -54,188 +44,219 @@ function clampTake(n: number): number {
   return Math.min(Math.max(Math.floor(x), 1), 100);
 }
 
-function computeRangeISO(
-  preset: DatePreset,
-  from: string | null,
-  to: string | null,
-  status: CashSessionStatusFilter
-): RangeISO {
-  const now = new Date();
+function toYmdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+function addDaysYmd(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return toYmdLocal(dt);
+}
 
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-  // ✅ si estás viendo "Cerradas", evita incluir HOY (día en curso) excepto en preset HOY o RANGO manual
-  const effectiveTo =
-    status === "closed" && preset !== "HOY" && preset !== "RANGO"
-      ? endOfDay(yesterday)
-      : endOfDay(now);
+function computeRangeYmd(preset: DatePreset, from: string | null, to: string | null): RangeYmd {
+  const today = toYmdLocal(new Date());
 
   if (preset === "RANGO") {
-    const f = from ? new Date(from) : startOfDay(new Date(now.getTime() - 7 * 86400000));
-    const t = to ? endOfDay(new Date(to)) : effectiveTo;
-    return { from: startOfDay(f).toISOString(), to: t.toISOString() };
+    const f = from ?? today;
+    const endInclusive = to ?? today;
+    return { from: f, to: addDaysYmd(endInclusive, 1) }; // ✅ to exclusive
   }
 
-  if (preset === "HOY") {
-    return { from: startOfDay(now).toISOString(), to: endOfDay(now).toISOString() };
-  }
+  if (preset === "HOY") return { from: today, to: addDaysYmd(today, 1) };
+  if (preset === "ULTIMOS_7_DIAS") return { from: addDaysYmd(today, -6), to: addDaysYmd(today, 1) };
+  if (preset === "ULTIMOS_30_DIAS") return { from: addDaysYmd(today, -29), to: addDaysYmd(today, 1) };
 
-  if (preset === "ULTIMOS_7_DIAS") {
-    const f = startOfDay(new Date(effectiveTo.getTime() - 7 * 86400000));
-    return { from: f.toISOString(), to: effectiveTo.toISOString() };
-  }
-
-  if (preset === "ULTIMOS_30_DIAS") {
-    const f = startOfDay(new Date(effectiveTo.getTime() - 30 * 86400000));
-    return { from: f.toISOString(), to: effectiveTo.toISOString() };
-  }
-
-  // ESTE_MES
-  const f = new Date(effectiveTo.getFullYear(), effectiveTo.getMonth(), 1);
-  return { from: startOfDay(f).toISOString(), to: effectiveTo.toISOString() };
+  const now = new Date();
+  const firstDay = toYmdLocal(new Date(now.getFullYear(), now.getMonth(), 1));
+  return { from: firstDay, to: addDaysYmd(today, 1) };
 }
 
-function buildListQuery(params: {
-  status: CashSessionStatusFilter;
-  range: RangeISO;
-  take: number;
-  cursor: string | null;
-}): ListCashSessionsQuery {
-  return {
-    status: params.status,
-    from: params.range.from,
-    to: params.range.to,
-    take: params.take,
-    cursor: params.cursor,
-  };
-}
-
-export function useAdminReportsQuery(opts: Opts = {}) {
+export function useAdminReportsQuery(opts: Opts) {
   const router = useRouter();
+
+  const tab = opts.tab;
+  const warehouseOptions = opts.warehouseOptions ?? [];
+  const terminalOptions = opts.terminalOptions ?? [];
+  const initialTake = opts.initialTake ?? 30;
 
   const DEFAULT_FILTERS = React.useMemo<AdminReportsFilters>(
     () => ({
-      warehouseId: opts.initialWarehouseId ?? null,
-      terminalId: opts.initialTerminalId ?? null,
-      status: opts.initialStatus ?? "closed",
-      preset: opts.initialPreset ?? "ULTIMOS_7_DIAS",
-      from: opts.initialFrom ?? null,
-      to: opts.initialTo ?? null,
+      warehouseId: null,
+      terminalId: null,
+      preset: "HOY",
+      from: null,
+      to: null,
     }),
-    [
-      opts.initialWarehouseId,
-      opts.initialTerminalId,
-      opts.initialStatus,
-      opts.initialPreset,
-      opts.initialFrom,
-      opts.initialTo,
-    ]
+    []
   );
 
-  // draft (UI) vs applied (query)
-  const [draft, setDraft] = React.useState<AdminReportsFilters>(DEFAULT_FILTERS);
-  const [applied, setApplied] = React.useState<AdminReportsFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = React.useState<AdminReportsFilters>(DEFAULT_FILTERS);
 
-  const [take, setTake] = React.useState<number>(clampTake(opts.initialTake ?? 30));
+  // sessions-only
+  const [sessionStatus, setSessionStatus] = React.useState<CashSessionStatusFilter>("closed");
+  const [take, setTake] = React.useState<number>(clampTake(initialTake));
 
   // data
   const [overview, setOverview] = React.useState<ReportsOverviewDTO | null>(null);
   const [dailyRows, setDailyRows] = React.useState<ReportsDailyRowDTO[]>([]);
+  const [alerts, setAlerts] = React.useState<ReportsAlertsDTO | null>(null);
   const [list, setList] = React.useState<CashSessionsListDTO | null>(null);
 
-  // loading flags
+  // loading flags (UI)
   const [loadingOverview, setLoadingOverview] = React.useState(false);
+  const [loadingAlerts, setLoadingAlerts] = React.useState(false);
   const [loadingList, setLoadingList] = React.useState(false);
   const [loadingNext, setLoadingNext] = React.useState(false);
 
-  // ---------------- draft setters ----------------
+  // loading gates (NO re-render)
+  const loadingRef = React.useRef({
+    overview: false,
+    alerts: false,
+    list: false,
+    next: false,
+  });
+
+  // dedupe
+  const inflightRef = React.useRef<Map<string, Promise<unknown>>>(new Map());
+
+  // tokens: cancel-by-staleness (sin AbortController)
+  const tokenRef = React.useRef({
+    overview: 0,
+    alerts: 0,
+    list: 0,
+    next: 0,
+  });
+
+  function dedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const hit = inflightRef.current.get(key);
+    if (hit) return hit as Promise<T>;
+    const p = fn().finally(() => inflightRef.current.delete(key));
+    inflightRef.current.set(key, p);
+    return p;
+  }
+
+  // ---------------- setters ----------------
   const setWarehouseId = React.useCallback((v: string | null) => {
-    setDraft((s) => ({ ...s, warehouseId: v }));
+    setFilters((s) => (s.warehouseId === v ? s : { ...s, warehouseId: v }));
   }, []);
 
   const setTerminalId = React.useCallback((v: string | null) => {
-    setDraft((s) => ({ ...s, terminalId: v }));
-  }, []);
-
-  const setStatus = React.useCallback((v: CashSessionStatusFilter) => {
-    setDraft((s) => ({ ...s, status: v }));
+    setFilters((s) => (s.terminalId === v ? s : { ...s, terminalId: v }));
   }, []);
 
   const setPreset = React.useCallback((v: DatePreset) => {
-    setDraft((s) => {
-      if (v !== "RANGO") return { ...s, preset: v, from: null, to: null };
-      return { ...s, preset: "RANGO" };
+    setFilters((s) => {
+      if (v === "RANGO") return s.preset === "RANGO" ? s : { ...s, preset: "RANGO" };
+      if (s.preset === v && !s.from && !s.to) return s;
+      return { ...s, preset: v, from: null, to: null };
     });
   }, []);
 
   const setFrom = React.useCallback((v: string) => {
-    setDraft((s) => ({ ...s, preset: "RANGO", from: v || null }));
+    setFilters((s) => ({ ...s, preset: "RANGO", from: v || null }));
   }, []);
 
   const setTo = React.useCallback((v: string) => {
-    setDraft((s) => ({ ...s, preset: "RANGO", to: v || null }));
+    setFilters((s) => ({ ...s, preset: "RANGO", to: v || null }));
   }, []);
 
-  const clearDraft = React.useCallback(() => {
-    setDraft(DEFAULT_FILTERS);
+  const clearFilters = React.useCallback(() => {
+    setFilters(DEFAULT_FILTERS);
   }, [DEFAULT_FILTERS]);
 
-  // ---------------- loaders (reciben filtros) ----------------
-  const loadOverviewFor = React.useCallback(
-    async (f: AdminReportsFilters) => {
-      if (loadingOverview) return;
+  // ---------------- loaders (ESTABLES) ----------------
+  const loadOverviewFor = React.useCallback(async (f: AdminReportsFilters) => {
+    if (loadingRef.current.overview) return;
 
-      const range = computeRangeISO(f.preset, f.from, f.to, f.status);
+    const range = computeRangeYmd(f.preset, f.from, f.to);
+    const myToken = ++tokenRef.current.overview;
 
-      setLoadingOverview(true);
-      opts.setLoading?.(true);
+    loadingRef.current.overview = true;
+    setLoadingOverview(true);
 
-      try {
-        const [ov, daily] = await Promise.all([
-          adminReportsService.overview({ from: range.from, to: range.to }),
-          adminReportsService.dailySummary({  from: range.from, to: range.to }),
-        ]);
+    try {
+      const keyOv = `ov:${range.from}:${range.to}`;
+      const keyDy = `dy:${range.from}:${range.to}`;
 
-        setOverview(ov);
-        setDailyRows(daily);
-      } catch (e: unknown) {
-        notify.error({ title: "Error cargando resumen", description: errMsg(e) });
-      } finally {
-        opts.setLoading?.(false);
+      const [ov, daily] = await Promise.all([
+        dedupe(keyOv, () => adminReportsService.overview({ from: range.from, to: range.to })),
+        dedupe(keyDy, () => adminReportsService.dailySummary({ from: range.from, to: range.to })),
+      ]);
+
+      if (myToken !== tokenRef.current.overview) return;
+
+      setOverview(ov);
+      setDailyRows(daily);
+    } catch (e: unknown) {
+      if (myToken !== tokenRef.current.overview) return;
+      notify.error({ title: "Error cargando resumen", description: errMsg(e) });
+    } finally {
+      if (myToken === tokenRef.current.overview) {
+        loadingRef.current.overview = false;
         setLoadingOverview(false);
       }
-    },
-    [loadingOverview, opts]
-  );
+    }
+  }, []);
+
+  const loadAlertsFor = React.useCallback(async (f: AdminReportsFilters) => {
+    if (loadingRef.current.alerts) return;
+
+    const range = computeRangeYmd(f.preset, f.from, f.to);
+    const myToken = ++tokenRef.current.alerts;
+
+    loadingRef.current.alerts = true;
+    setLoadingAlerts(true);
+
+    try {
+      const key = `alerts:${range.from}:${range.to}`;
+      const res = await dedupe(key, () => adminReportsService.alerts({ from: range.from, to: range.to }));
+
+      if (myToken !== tokenRef.current.alerts) return;
+
+      setAlerts(res);
+    } catch (e: unknown) {
+      if (myToken !== tokenRef.current.alerts) return;
+      notify.error({ title: "Error cargando alertas", description: errMsg(e) });
+    } finally {
+      if (myToken === tokenRef.current.alerts) {
+        loadingRef.current.alerts = false;
+        setLoadingAlerts(false);
+      }
+    }
+  }, []);
 
   const loadListFor = React.useCallback(
-    async (f: AdminReportsFilters, cursor: string | null) => {
-      if (cursor === null && loadingList) return;
-      if (cursor !== null && loadingNext) return;
+    async (f: AdminReportsFilters, status: CashSessionStatusFilter, cursor: string | null, takeNow: number) => {
+      const mode: "list" | "next" = cursor === null ? "list" : "next";
 
-      const range = computeRangeISO(f.preset, f.from, f.to, f.status);
+      if (mode === "list" && loadingRef.current.list) return;
+      if (mode === "next" && loadingRef.current.next) return;
 
-      const q = buildListQuery({
-        status: f.status,
-        range,
-        take,
-        cursor,
-      });
+      const range = computeRangeYmd(f.preset, f.from, f.to);
+      const myToken = ++tokenRef.current[mode];
 
-      if (cursor === null) {
+      const q: ListCashSessionsQuery = { status, from: range.from, to: range.to, take: takeNow, cursor };
+
+      if (mode === "list") {
+        loadingRef.current.list = true;
         setLoadingList(true);
-        opts.setLoading?.(true);
       } else {
+        loadingRef.current.next = true;
         setLoadingNext(true);
       }
 
       try {
-        const res = await adminReportsService.listCashSessions(q);
+        const key = `list:${status}:${range.from}:${range.to}:${takeNow}:${cursor ?? "null"}`;
+        const res = await dedupe(key, () => adminReportsService.listCashSessions(q));
 
-        if (cursor === null) {
+        if (myToken !== tokenRef.current[mode]) return;
+
+        if (mode === "list") {
           setList(res);
         } else {
           setList((prev) => ({
@@ -244,85 +265,104 @@ export function useAdminReportsQuery(opts: Opts = {}) {
           }));
         }
       } catch (e: unknown) {
+        if (myToken !== tokenRef.current[mode]) return;
         notify.error({
-          title: cursor ? "Error cargando más" : "Error cargando sesiones",
+          title: mode === "next" ? "Error cargando más" : "Error cargando sesiones",
           description: errMsg(e),
         });
       } finally {
-        if (cursor === null) {
-          opts.setLoading?.(false);
-          setLoadingList(false);
-        } else {
-          setLoadingNext(false);
+        if (myToken === tokenRef.current[mode]) {
+          if (mode === "list") {
+            loadingRef.current.list = false;
+            setLoadingList(false);
+          } else {
+            loadingRef.current.next = false;
+            setLoadingNext(false);
+          }
         }
       }
     },
-    [loadingList, loadingNext, opts, take]
+    []
   );
 
-  const refreshAllFor = React.useCallback(
-    async (f: AdminReportsFilters) => {
-      await Promise.all([loadOverviewFor(f), loadListFor(f, null)]);
-    },
-    [loadOverviewFor, loadListFor]
-  );
+  const refreshOverview = React.useCallback(async () => {
+    await Promise.all([loadOverviewFor(filters), loadAlertsFor(filters)]);
+  }, [filters, loadOverviewFor, loadAlertsFor]);
 
-  // ---------------- actions ----------------
+  const refreshSessions = React.useCallback(async () => {
+    await loadListFor(filters, sessionStatus, null, take);
+  }, [filters, sessionStatus, take, loadListFor]);
 
-  // ✅ Apply: FIX doble click (consulta con snapshot)
-  const apply = React.useCallback(async () => {
-    const next = draft;
-    setApplied(next);
-    await refreshAllFor(next);
-  }, [draft, refreshAllFor]);
+  // ✅ effect key estable (no depende de identidad de funciones)
+  const effectKey = React.useMemo(() => {
+    return [
+      tab,
+      filters.warehouseId ?? "",
+      filters.terminalId ?? "",
+      filters.preset,
+      filters.from ?? "",
+      filters.to ?? "",
+      sessionStatus,
+      take,
+    ].join("|");
+  }, [tab, filters.warehouseId, filters.terminalId, filters.preset, filters.from, filters.to, sessionStatus, take]);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      if (tab === "overview") {
+        void loadOverviewFor(filters);
+        void loadAlertsFor(filters);
+      } else {
+        void loadListFor(filters, sessionStatus, null, take);
+      }
+    }, 250);
+
+    return () => clearTimeout(t);
+  }, [effectKey, tab, filters, sessionStatus, take, loadOverviewFor, loadAlertsFor, loadListFor]);
 
   const refreshAll = React.useCallback(async () => {
-    await refreshAllFor(applied);
-  }, [applied, refreshAllFor]);
+    if (tab === "overview") await refreshOverview();
+    else await refreshSessions();
+  }, [tab, refreshOverview, refreshSessions]);
 
   const loadNextPage = React.useCallback(async () => {
     const cursor = list?.nextCursor ?? null;
     if (!cursor) return;
-    await loadListFor(applied, cursor);
-  }, [list?.nextCursor, loadListFor, applied]);
-
-  // ✅ cargar 1 vez al entrar (sin loop)
-  React.useEffect(() => {
-    void refreshAllFor(applied);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    await loadListFor(filters, sessionStatus, cursor, take);
+  }, [list?.nextCursor, loadListFor, filters, sessionStatus, take]);
 
   const onOpen = React.useCallback(
-    (row: RowId) => {
+    (row: { id: string }) => {
       router.push(`/admin/reports/${row.id}`);
     },
     [router]
   );
 
   return {
-    warehouseOptions: opts.warehouseOptions ?? [],
-    terminalOptions: opts.terminalOptions ?? [],
+    warehouseOptions,
+    terminalOptions,
 
-    draft,
+    filters,
+    sessionStatus,
+
     setWarehouseId,
     setTerminalId,
-    setStatus,
     setPreset,
     setFrom,
     setTo,
-    clearDraft,
-
-    applied,
+    setSessionStatus,
+    clearFilters,
 
     overview,
     dailyRows,
+    alerts,
     list,
 
     loadingOverview,
+    loadingAlerts,
     loadingList,
     loadingNext,
 
-    apply,
     refreshAll,
     loadNextPage,
     onOpen,

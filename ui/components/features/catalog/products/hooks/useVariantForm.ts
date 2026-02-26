@@ -60,7 +60,8 @@ export function useVariantForm(args: {
       sku: v?.sku ?? "",
       barcode: v?.barcode ?? "",
       title: v?.title ?? "",
-      unit: (v?.unit ?? "") as VariantUnit | "",
+      unit: (v?.pricingUnit ?? "") as VariantUnit | "",
+
       // ✅ viene en minor -> lo mostramos como decimal (ej 12 -> "0.12")
       price: v ? minorToMoneyString(v.priceBaseMinor ?? 0, { scale: MONEY_SCALE }) : "0.00",
       cost: v ? minorToMoneyString(v.costBaseMinor ?? 0, { scale: MONEY_SCALE }) : "0.00",

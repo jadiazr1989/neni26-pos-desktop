@@ -1,51 +1,87 @@
 // src/lib/modules/catalog/products/product.submit.ts
-import type { CreateProductInput, UpdateProductInput } from "./product.dto";
 
-export type CreateProductResult = { productId: string; baseVariantId: string | null };
+import type { SellUnit, Unit } from "./product.dto";
+import type { ProductPort } from "./product.port";
 
-export type ProductServicePort = {
-  create(input: CreateProductInput): Promise<CreateProductResult>;
-  update(id: string, patch: UpdateProductInput): Promise<void>;
-};
-
-export type ProductSubmitMode = "create" | "edit";
-
+// ✅ evita importar ProductFormValue desde UI para romper ciclos
+// ✅ UI guarda PRICING UNIT (lo humano), NO baseUnit
 export type ProductFormValue = {
   name: string;
   barcode: string | null;
   description: string | null;
   brandId: string | null;
-  categoryId: string;            // required
-  baseUnit: "UNIT" | "LB" | "KG" | "L" | "ML"; // required en create
+  categoryId: string;
+
+  pricingUnit: SellUnit; // UNIT/G/KG/LB/ML/L
 };
 
+function mapUnits(pricingUnit: SellUnit): {
+  baseUnit: Unit;
+  pricingUnit: SellUnit;
+  unitFactor: string;
+} {
+  switch (pricingUnit) {
+    case "UNIT":
+      return { baseUnit: "UNIT", pricingUnit: "UNIT", unitFactor: "1" };
+
+    case "G":
+      return { baseUnit: "G", pricingUnit: "G", unitFactor: "1" };
+
+    case "KG":
+      return { baseUnit: "G", pricingUnit: "KG", unitFactor: "1000" };
+
+    case "LB":
+      // ✅ mejor precisión y consistente con tu helper/meta
+      return { baseUnit: "G", pricingUnit: "LB", unitFactor: "453.59237" };
+
+    case "ML":
+      return { baseUnit: "ML", pricingUnit: "ML", unitFactor: "1" };
+
+    case "L":
+      return { baseUnit: "ML", pricingUnit: "L", unitFactor: "1000" };
+
+    default: {
+      const _exhaustive: never = pricingUnit;
+      throw new Error(`Unsupported pricingUnit: ${_exhaustive}`);
+    }
+  }
+}
+
 export async function submitProduct(args: {
-  mode: ProductSubmitMode;
+  mode: "create" | "edit";
   productId: string | null;
   value: ProductFormValue;
-  service: ProductServicePort;
-}): Promise<CreateProductResult> {
+  service: Pick<ProductPort, "create" | "update">;
+}): Promise<{ productId: string; baseVariantId?: string }> {
   if (args.mode === "create") {
-    return args.service.create({
+    const units = mapUnits(args.value.pricingUnit);
+
+    const created = await args.service.create({
       name: args.value.name,
       barcode: args.value.barcode,
       description: args.value.description,
       brandId: args.value.brandId,
       categoryId: args.value.categoryId,
-      baseUnit: args.value.baseUnit,
+
+      // ✅ base variant definition
+      baseUnit: units.baseUnit,
+      pricingUnit: units.pricingUnit,
+      unitFactor: units.unitFactor,
     });
+
+    return created;
   }
 
-  if (!args.productId) throw new Error("productId requerido para editar");
+  if (!args.productId) throw new Error("productId required for edit");
 
-  await args.service.update(args.productId, {
+  // edit: NO tocar unidades (correcto)
+  const updated = await args.service.update(args.productId, {
     name: args.value.name,
     barcode: args.value.barcode,
     description: args.value.description,
     brandId: args.value.brandId,
     categoryId: args.value.categoryId,
-    // ⚠️ edit NO cambia baseUnit (por diseño)
   });
 
-  return { productId: args.productId, baseVariantId: null };
+  return { productId: updated.product.id };
 }

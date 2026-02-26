@@ -1,7 +1,7 @@
 "use client";
 
-import { Plus, RefreshCw } from "lucide-react";
 import * as React from "react";
+import { Plus, RefreshCw } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -13,18 +13,17 @@ import { useTerminalsScreen } from "./hooks/useTerminalsScreen";
 import { TerminalDialog } from "./ui/TerminalDialog";
 import { TerminalsTable } from "./ui/TerminalsTable";
 
-
 export function TerminalsScreen(): React.JSX.Element {
   const vm = useTerminalsScreen();
+
+  const selectedId = vm.selected?.id ?? null;
 
   return (
     <div className="space-y-4 pb-24">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-xl font-semibold">Terminales</h1>
-          <p className="text-sm text-muted-foreground">
-            Crea, edita, activa/desactiva y reasigna terminales a warehouses.
-          </p>
+          <p className="text-sm text-muted-foreground">Crea, edita, activa/desactiva y reasigna terminales a warehouses.</p>
         </div>
 
         <div className="flex gap-2">
@@ -42,7 +41,7 @@ export function TerminalsScreen(): React.JSX.Element {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="">Listado</CardTitle>
+          <CardTitle>Listado</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
@@ -67,9 +66,9 @@ export function TerminalsScreen(): React.JSX.Element {
           <TerminalsTable
             rows={vm.filtered}
             loading={vm.loading}
-            onEdit={vm.openEdit}
-            onToggleActive={vm.askToggleActive}
             height={560}
+            selectedId={selectedId}
+            onRowClick={(t) => vm.openEdit(t)} // ✅ click fila = edit
           />
         </CardContent>
       </Card>

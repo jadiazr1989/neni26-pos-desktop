@@ -38,15 +38,13 @@ class PurchaseService {
     const res = await this.port.receive(purchaseId, input);
     return res.purchase;
   }
+
   async order(purchaseId: string): Promise<PurchaseDTO> {
     const res = await this.port.order(purchaseId);
     return res.purchase;
   }
 
-  async cancel(
-    purchaseId: string,
-    input?: CancelPurchaseInput,
-  ): Promise<PurchaseDTO> {
+  async cancel(purchaseId: string, input?: CancelPurchaseInput): Promise<PurchaseDTO> {
     const res = await this.port.cancel(purchaseId, input);
     return res.purchase;
   }

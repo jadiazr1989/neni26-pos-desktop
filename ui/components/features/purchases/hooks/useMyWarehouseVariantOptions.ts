@@ -2,40 +2,41 @@
 
 import * as React from "react";
 import { inventoryService } from "@/lib/modules/inventory/inventory.service";
-import type { WarehouseStockRowDTO } from "@/lib/modules/inventory/inventory.dto";
+import type { WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
 
 export type VariantPick = {
-  id: string;     // variantId
-  label: string;  // "SKU · Title · Product"
+  id: string;
+  label: string;
   sku?: string | null;
   title?: string | null;
   productName?: string | null;
-  // defaults opcionales si existieran en DTO (si no, déjalos null)
+
   defaultUnitCostBaseMinor?: number | null;
   defaultUnitPriceBaseMinor?: number | null;
 };
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-function mapPick(dto: WarehouseStockRowDTO): VariantPick {
-  const sku = dto.variant?.sku ?? null;
-  const title = dto.variant?.title ?? null;
-  const productName = dto.variant?.product?.name ?? null;
+function mapPick(r: WarehouseStockRowUI): VariantPick {
+  const sku = r.sku ?? null;
+  const title = r.title ?? null;
+  const productName = r.productName ?? null;
 
-  const label = [
-    sku ? sku : "—",
-    title ? title : "",
-    productName ? `(${productName})` : "",
-  ].filter(Boolean).join(" · ").trim();
+  const label = [sku ? sku : "—", title ? title : "", productName ? `(${productName})` : ""]
+    .filter(Boolean)
+    .join(" · ")
+    .trim();
 
   return {
-    id: dto.variantId,
+    id: r.variantId,
     label,
     sku,
     title,
     productName,
-    defaultUnitCostBaseMinor: null,
-    defaultUnitPriceBaseMinor: null,
+
+    // ✅ defaults desde UI row (ya viene mapeado desde DTO)
+    defaultUnitCostBaseMinor: typeof r.costBaseMinor === "number" ? r.costBaseMinor : null,
+    defaultUnitPriceBaseMinor: typeof r.priceBaseMinor === "number" ? r.priceBaseMinor : null,
   };
 }
 
@@ -45,11 +46,13 @@ function includesQ(p: VariantPick, q: string) {
   return hay.includes(q.toLowerCase());
 }
 
-export function useMyWarehouseVariantOptions(params?: { maxItems?: number }) {
+export function useMyWarehouseVariantOptions(params?: { maxItems?: number; pageSize?: number }) {
   const maxItems = params?.maxItems ?? 400;
+  const pageSize = params?.pageSize ?? 100;
 
   const [loadState, setLoadState] = React.useState<LoadState>("idle");
   const [loadError, setLoadError] = React.useState<string | null>(null);
+
   const [all, setAll] = React.useState<VariantPick[]>([]);
   const [nextCursor, setNextCursor] = React.useState<string | null>(null);
 
@@ -61,8 +64,8 @@ export function useMyWarehouseVariantOptions(params?: { maxItems?: number }) {
     setLoadError(null);
 
     try {
-      const res = await inventoryService.getMyWarehouseStock({ limit: 100, cursor: null });
-      const picks = (res.rows as WarehouseStockRowDTO[]).map(mapPick);
+      const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor: null });
+      const picks = res.rows.map(mapPick);
       setAll(picks);
       setNextCursor(res.nextCursor ?? null);
       setLoadState("ready");
@@ -70,7 +73,7 @@ export function useMyWarehouseVariantOptions(params?: { maxItems?: number }) {
       setLoadState("error");
       setLoadError(e instanceof Error ? e.message : "No se pudo cargar inventario.");
     }
-  }, [all.length, loadState]);
+  }, [all.length, loadState, pageSize]);
 
   const loadMore = React.useCallback(async () => {
     if (loadState === "loading") return;
@@ -81,10 +84,9 @@ export function useMyWarehouseVariantOptions(params?: { maxItems?: number }) {
     setLoadError(null);
 
     try {
-      const res = await inventoryService.getMyWarehouseStock({ limit: 100, cursor: nextCursor });
-      const picks = (res.rows as WarehouseStockRowDTO[]).map(mapPick);
+      const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor: nextCursor });
+      const picks = res.rows.map(mapPick);
 
-      // merge unique por id
       const m = new Map<string, VariantPick>();
       for (const p of all) m.set(p.id, p);
       for (const p of picks) m.set(p.id, p);
@@ -97,13 +99,16 @@ export function useMyWarehouseVariantOptions(params?: { maxItems?: number }) {
       setLoadState("error");
       setLoadError(e instanceof Error ? e.message : "No se pudo cargar más.");
     }
-  }, [all, loadState, maxItems, nextCursor]);
+  }, [all, loadState, maxItems, nextCursor, pageSize]);
 
-  const searchLocal = React.useCallback((q: string) => {
-    const t = q.trim();
-    if (!t) return all.slice(0, 50);
-    return all.filter((x) => includesQ(x, t)).slice(0, 50);
-  }, [all]);
+  const searchLocal = React.useCallback(
+    (q: string) => {
+      const t = q.trim();
+      if (!t) return all.slice(0, 50);
+      return all.filter((x) => includesQ(x, t)).slice(0, 50);
+    },
+    [all],
+  );
 
   return {
     loadState,

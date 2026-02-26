@@ -21,8 +21,5 @@ export interface PurchasePort {
   setItems(purchaseId: string, input: SetPurchaseItemsInput): Promise<SetPurchaseItemsResponse>;
   receive(purchaseId: string, input?: ReceivePurchaseInput): Promise<ReceivePurchaseResponse>;
   order(purchaseId: string): Promise<OrderPurchaseResponse>;
-  cancel(
-    purchaseId: string,
-    input?: CancelPurchaseInput,
-  ): Promise<CancelPurchaseResponse>;
+  cancel(purchaseId: string, input?: CancelPurchaseInput): Promise<CancelPurchaseResponse>;
 }

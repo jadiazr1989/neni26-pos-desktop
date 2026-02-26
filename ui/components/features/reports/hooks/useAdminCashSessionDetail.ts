@@ -1,3 +1,4 @@
+// src/modules/admin/reports/hooks/useAdminCashSessionDetail.ts
 "use client";
 
 import * as React from "react";
@@ -7,12 +8,14 @@ import { cashService } from "@/lib/modules/cash/cash.service";
 import type { CashSessionAdminDetailDTO } from "@/lib/modules/admin/reports";
 
 type Opts = {
-  // para refrescar la lista después (opcional)
   onLoaded?: (detail: CashSessionAdminDetailDTO) => void;
 };
 
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : "Unexpected error";
+}
+
 export function useAdminCashSessionDetail(opts: Opts = {}) {
-  const [open, setOpen] = React.useState(false);
   const [cashSessionId, setCashSessionId] = React.useState<string | null>(null);
 
   const [loading, setLoading] = React.useState(false);
@@ -21,31 +24,36 @@ export function useAdminCashSessionDetail(opts: Opts = {}) {
   const [exportingCsv, setExportingCsv] = React.useState(false);
   const [exportingPdf, setExportingPdf] = React.useState(false);
 
-  const show = React.useCallback(async (id: string) => {
-    if (!id) return;
-    if (loading) return;
+  // token cancel-by-staleness
+  const tokenRef = React.useRef(0);
 
-    setOpen(true);
-    setCashSessionId(id);
-    setDetail(null);
+  const show = React.useCallback(
+    async (id: string) => {
+      const clean = String(id ?? "").trim();
+      if (!clean) return;
 
-    setLoading(true);
-    try {
-      const d = await adminReportsService.cashSessionDetail(id);
-      setDetail(d);
-      opts.onLoaded?.(d);
-    } catch (e: unknown) {
-      notify.error({ title: "Error cargando detalle", description: e instanceof Error ? e.message : "Unexpected error" });
-    } finally {
-      setLoading(false);
-    }
-  }, [loading, opts]);
+      setCashSessionId(clean);
+      setDetail(null);
 
-  const close = React.useCallback(() => {
-    setOpen(false);
-    setCashSessionId(null);
-    setDetail(null);
-  }, []);
+      const myToken = ++tokenRef.current;
+
+      setLoading(true);
+      try {
+        // ✅ Debe devolver CashSessionAdminDetailDTO con usersById/operators incluidos
+        const d = await adminReportsService.cashSessionDetail(clean);
+        if (myToken !== tokenRef.current) return;
+
+        setDetail(d);
+        opts.onLoaded?.(d);
+      } catch (e: unknown) {
+        if (myToken !== tokenRef.current) return;
+        notify.error({ title: "Error cargando detalle", description: errMsg(e) });
+      } finally {
+        if (myToken === tokenRef.current) setLoading(false);
+      }
+    },
+    [opts]
+  );
 
   const downloadCsv = React.useCallback(async () => {
     if (!cashSessionId) return;
@@ -69,7 +77,7 @@ export function useAdminCashSessionDetail(opts: Opts = {}) {
 
       notify.success({ title: "Export listo", description: "CSV descargado." });
     } catch (e: unknown) {
-      notify.error({ title: "No se pudo exportar CSV", description: e instanceof Error ? e.message : "Unexpected error" });
+      notify.error({ title: "No se pudo exportar CSV", description: errMsg(e) });
     } finally {
       setExportingCsv(false);
     }
@@ -95,20 +103,18 @@ export function useAdminCashSessionDetail(opts: Opts = {}) {
 
       notify.success({ title: "Export listo", description: "PDF descargado." });
     } catch (e: unknown) {
-      notify.error({ title: "No se pudo exportar PDF", description: e instanceof Error ? e.message : "Unexpected error" });
+      notify.error({ title: "No se pudo exportar PDF", description: errMsg(e) });
     } finally {
       setExportingPdf(false);
     }
   }, [cashSessionId, exportingPdf]);
 
   return {
-    open,
     detail,
     cashSessionId,
     loading,
 
     show,
-    close,
 
     exportingCsv,
     exportingPdf,

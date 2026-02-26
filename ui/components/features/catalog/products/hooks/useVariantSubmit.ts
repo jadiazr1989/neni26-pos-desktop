@@ -4,10 +4,36 @@
 import * as React from "react";
 import { notify } from "@/lib/notify/notify";
 import { productService } from "@/lib/modules/catalog/products/product.service";
-import type { ProductVariantDTO } from "@/lib/modules/catalog/products/product.dto";
+import type {
+  ProductVariantDTO,
+  Unit,
+  SellUnit,
+} from "@/lib/modules/catalog/products/product.dto";
 import { VariantUnit } from "../variants/variant.constants";
 
 export type VariantMode = "create" | "edit";
+
+function mapUnit(unit: VariantUnit): { baseUnit: Unit; pricingUnit: SellUnit; unitFactor: string } {
+  switch (unit) {
+    case "UNIT":
+      return { baseUnit: "UNIT", pricingUnit: "UNIT", unitFactor: "1" };
+
+    case "KG":
+      return { baseUnit: "G", pricingUnit: "KG", unitFactor: "1000" };
+
+    case "LB":
+      return { baseUnit: "G", pricingUnit: "LB", unitFactor: "453.59237" };
+
+    case "L":
+      return { baseUnit: "ML", pricingUnit: "L", unitFactor: "1000" };
+
+    case "G":
+      return { baseUnit: "G", pricingUnit: "G", unitFactor: "1" };
+
+    case "ML":
+      return { baseUnit: "ML", pricingUnit: "ML", unitFactor: "1" };
+  }
+}
 
 export function useVariantSubmit(args: {
   mode: VariantMode;
@@ -16,7 +42,19 @@ export function useVariantSubmit(args: {
   variantId?: string;
 
   validate: () =>
-    | { ok: true; value: { sku: string; barcode: string | null; title: string | null; unit: VariantUnit; attributes: null; priceBaseMinor: number; costBaseMinor: number; imageFile: File | null } }
+    | {
+        ok: true;
+        value: {
+          sku: string;
+          barcode: string | null;
+          title: string | null;
+          unit: VariantUnit;
+          attributes: null; // si luego soportas JSON, cambia este tipo
+          priceBaseMinor: number;
+          costBaseMinor: number;
+          imageFile: File | null;
+        };
+      }
     | { ok: false; error: string };
 
   onSaved: () => Promise<void> | void;
@@ -26,7 +64,7 @@ export function useVariantSubmit(args: {
   const submittingRef = React.useRef(false);
 
   const submit = React.useCallback(async () => {
-    if (submittingRef.current) return; // ✅ anti doble click / doble trigger
+    if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
 
@@ -45,15 +83,30 @@ export function useVariantSubmit(args: {
           return;
         }
 
+        const units = mapUnit(payload.unit);
+
         const variantId = await productService.createVariant(args.productId, {
           sku: payload.sku,
           barcode: payload.barcode,
           title: payload.title,
-          unit: payload.unit,
+
+          // ✅ si no hay atributos, NO mandar null (evita líos con exactOptionalPropertyTypes)
+          attributes: undefined,
+
+          baseUnit: units.baseUnit,
+          pricingUnit: units.pricingUnit,
+          unitFactor: units.unitFactor,
+
+          allowedUnitsJson: undefined,
+          packs: undefined,
+
+          // ✅ el backend lo requiere; queda "pending" hasta upload
+          imageUrl: "pending",
+
           priceBaseMinor: payload.priceBaseMinor,
           costBaseMinor: payload.costBaseMinor,
           isActive: true,
-          attributes: payload.attributes,
+          isDefault: false,
         });
 
         await productService.uploadVariantImage(variantId, payload.imageFile);
@@ -64,11 +117,17 @@ export function useVariantSubmit(args: {
           return;
         }
 
+        const units = mapUnit(payload.unit);
+
         await productService.updateVariant(id, {
           sku: payload.sku,
           barcode: payload.barcode,
           title: payload.title,
-          unit: payload.unit,
+
+          baseUnit: units.baseUnit,
+          pricingUnit: units.pricingUnit,
+          unitFactor: units.unitFactor,
+
           priceBaseMinor: payload.priceBaseMinor,
           costBaseMinor: payload.costBaseMinor,
         });

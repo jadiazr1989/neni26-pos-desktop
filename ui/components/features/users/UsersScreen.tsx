@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, RefreshCw } from "lucide-react";
@@ -13,6 +14,8 @@ import { useUsersScreenController } from "./hooks/useUsersScreenController";
 
 export function UsersScreen() {
   const c = useUsersScreenController();
+
+  const selectedId = c.selected?.id ?? null;
 
   return (
     <div className="space-y-4">
@@ -37,7 +40,7 @@ export function UsersScreen() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="">Listado</CardTitle>
+          <CardTitle>Listado</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
@@ -58,8 +61,8 @@ export function UsersScreen() {
             loading={c.busy}
             hasMore={c.hasMore}
             loadMore={c.loadMore}
-            onEdit={c.openEdit}
-            onToggleActive={c.requestToggleActive}
+            selectedId={selectedId}
+            onRowClick={(u) => c.openEdit(u)} // ✅ click fila = edit
           />
         </CardContent>
       </Card>
@@ -73,6 +76,7 @@ export function UsersScreen() {
         onSubmit={c.submit}
       />
 
+      {/* ✅ Se queda igual; lo ideal es dispararlo desde el dialog */}
       <ConfirmDialog
         open={!!c.confirmToggle}
         onOpenChange={(v) => !v && c.setConfirmToggle(null)}

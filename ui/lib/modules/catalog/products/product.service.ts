@@ -5,7 +5,10 @@ import type {
   ProductDTO,
   ProductVariantDTO,
   CreateProductInput,
+  CreateProductResponse,
   UpdateProductInput,
+  UpdateProductResponse,
+  DeleteProductResponse,
   CreateVariantInput,
   UpdateVariantInput,
   ListPosCatalogQuery,
@@ -15,7 +18,7 @@ import type {
 export type ListProductsQuery = ListParams;
 
 class ProductService {
-  constructor(private readonly port: ProductPort) { }
+  constructor(private readonly port: ProductPort) {}
 
   async list(q: ListProductsQuery = {}): Promise<ProductDTO[]> {
     const res = await this.port.list(q);
@@ -27,18 +30,20 @@ class ProductService {
     return res.product;
   }
 
-  async create(input: CreateProductInput): Promise<{ productId: string; baseVariantId: string }> {
+  // ✅ mantiene tu forma actual, pero tipada con el DTO real
+  async create(input: CreateProductInput): Promise<CreateProductResponse> {
     const res = await this.port.create(input);
     return { productId: res.productId, baseVariantId: res.baseVariantId };
   }
 
-
-  async update(id: string, patch: UpdateProductInput): Promise<void> {
-    await this.port.update(id, patch);
+  // ✅ CAMBIO CLAVE: no es void, retorna lo que retorna el port
+  async update(id: string, patch: UpdateProductInput): Promise<UpdateProductResponse> {
+    return this.port.update(id, patch);
   }
 
-  async remove(id: string): Promise<void> {
-    await this.port.remove(id);
+  // ✅ recomendado: también retornar el response real (si lo necesitas luego)
+  async remove(id: string): Promise<DeleteProductResponse> {
+    return this.port.remove(id);
   }
 
   async createVariant(productId: string, input: CreateVariantInput): Promise<string> {
@@ -63,25 +68,14 @@ class ProductService {
     await this.port.uploadVariantImage(variantId, file);
   }
 
-  /**
-   * Útil para tu Dialog: crear variante + subir imagen (si aplica)
-   * - Si tu CreateVariantInput ya exige imageUrl, entonces NO uses esto.
-   * - Si tu backend: createVariant crea sin imagen y luego subes file -> usa esto.
-   */
-  async createVariantWithImage(
-    productId: string,
-    input: CreateVariantInput,
-    imageFile: File,
-  ): Promise<string> {
+  async createVariantWithImage(productId: string, input: CreateVariantInput, imageFile: File): Promise<string> {
     const variantId = await this.createVariant(productId, input);
     await this.uploadVariantImage(variantId, imageFile);
     return variantId;
   }
 
-
   // ✅ POS catalog
   async listPosCatalog(q: ListPosCatalogQuery = {}): Promise<ListPosCatalogResponse> {
-    // default defensivo (si no lo manda el UI)
     const payload: ListPosCatalogQuery = {
       inStock: q.inStock ?? true,
       limit: q.limit ?? 8,
@@ -92,7 +86,6 @@ class ProductService {
 
     return this.port.listPosCatalog(payload);
   }
-
 }
 
 export const productService = new ProductService(new ProductHttpAdapter());

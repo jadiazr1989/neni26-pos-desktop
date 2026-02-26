@@ -1,13 +1,20 @@
 "use client";
 
+import * as React from "react";
 import type { JSX, KeyboardEventHandler, MouseEventHandler } from "react";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFavorites } from "@/stores/favorites.store";
 
+function norm(id: string): string {
+  return (id ?? "").trim();
+}
+
 export function FavoriteToggleImpl(props: { productId: string }): JSX.Element {
-  const isFav = useFavorites((s) => s.isFav(props.productId));
+  const ids = useFavorites((s) => s.ids);   // ✅ subscribe real
   const toggle = useFavorites((s) => s.toggle);
+
+  const isFav = Boolean(ids[norm(props.productId)]);
 
   const onClick: MouseEventHandler<HTMLSpanElement> = (e) => {
     e.preventDefault();
@@ -40,10 +47,7 @@ export function FavoriteToggleImpl(props: { productId: string }): JSX.Element {
     >
       <Star
         aria-hidden="true"
-        className={cn(
-          "size-4",
-          isFav ? "fill-yellow-400 text-yellow-500" : "text-muted-foreground"
-        )}
+        className={cn("size-4", isFav ? "fill-yellow-400 text-yellow-500" : "text-muted-foreground")}
       />
     </span>
   );

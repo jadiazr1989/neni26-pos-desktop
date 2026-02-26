@@ -44,12 +44,14 @@ export function InventoryWarehouseStockTable(props: {
           </div>
         ),
       },
+      // InventoryWarehouseStockTable.tsx (col qty)
       {
         key: "qty",
         header: <span className="w-full text-right block">Stock</span>,
         className: "col-span-2 text-right tabular-nums",
-        render: (r) => String(r.qty),
-      },
+        render: (r) => r.availableDisplay ?? r.qtyDisplay ?? String(r.qtyBaseMinor),
+      }
+      ,
       {
         key: "active",
         header: <span className="w-full text-right block">Estado</span>,

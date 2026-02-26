@@ -55,6 +55,7 @@ function toHttpError(res: Response, env: ApiEnvelope<unknown> | null): ApiHttpEr
       code: env.error.code,
       reason: env.error.reason,
       requestId: env.error.requestId,
+      details: env.error.details ?? null,
     });
   }
 
@@ -85,7 +86,6 @@ export class ApiClient {
     });
 
     const env = await safeJson<ApiEnvelope<T>>(res);
-
     if (!res.ok || (env !== null && env.ok === false)) throw toHttpError(res, env);
     if (!env) throw new ApiHttpError({ message: "Invalid JSON envelope", status: res.status });
 
@@ -135,7 +135,7 @@ export class ApiClient {
     return env.data;
   }
 
-  // ✅ NEW: text (CSV, etc.)
+  // text (CSV, etc.)
   async text(path: string, init: RawInit = {}): Promise<string> {
     const headers = await buildHeaders({ headers: init.headers });
     const method = init.method ?? "GET";
@@ -153,15 +153,13 @@ export class ApiClient {
       cache: method === "GET" ? "no-store" : "default",
     });
 
-    // si el backend responde envelope JSON con error, conviértelo a ApiHttpError
     const env = await safeJson<ApiEnvelope<unknown>>(res);
     if (!res.ok || (env !== null && env.ok === false)) throw toHttpError(res, env);
 
-    // si no era JSON, igual está OK (ej: text/csv)
     return await res.text();
   }
 
-  // ✅ NEW: blob (PDF, etc.)
+  // blob (PDF, etc.)
   async blob(path: string, init: RawInit = {}): Promise<Blob> {
     const headers = await buildHeaders({ headers: init.headers });
     const method = init.method ?? "GET";
@@ -179,7 +177,6 @@ export class ApiClient {
       cache: method === "GET" ? "no-store" : "default",
     });
 
-    // intenta leer envelope de error si vino JSON
     const env = await safeJson<ApiEnvelope<unknown>>(res);
     if (!res.ok || (env !== null && env.ok === false)) throw toHttpError(res, env);
 

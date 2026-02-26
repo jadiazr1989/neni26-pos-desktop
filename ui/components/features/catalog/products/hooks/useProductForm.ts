@@ -1,7 +1,8 @@
+// src/modules/catalog/products/ui/hooks/useProductForm.ts
 "use client";
 
 import * as React from "react";
-import type { ProductDTO, VariantUnit } from "@/lib/modules/catalog/products/product.dto";
+import type { ProductDTO, SellUnit } from "@/lib/modules/catalog/products/product.dto";
 import { normalizeOptionalText, normalizeRequiredText } from "@/lib/forms/normalize";
 
 type ProductFormState = {
@@ -11,8 +12,8 @@ type ProductFormState = {
   brandId: string | null;
   categoryId: string | null;
 
-  // ✅ siempre existe en state (para create)
-  baseUnit: VariantUnit;
+  // ✅ UI selector: pricing unit (lo humano)
+  pricingUnit: SellUnit; // UNIT/G/KG/LB/ML/L
 };
 
 export type ProductFormValue = {
@@ -22,8 +23,8 @@ export type ProductFormValue = {
   brandId: string | null;
   categoryId: string;
 
-  // ✅ required en create (tu submit lo manda)
-  baseUnit: VariantUnit;
+  // ✅ lo que consume submitProduct
+  pricingUnit: SellUnit;
 };
 
 export function useProductForm(args: {
@@ -37,14 +38,13 @@ export function useProductForm(args: {
     description: "",
     brandId: null,
     categoryId: null,
-    baseUnit: "UNIT",
+    pricingUnit: "UNIT",
   });
 
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!args.open) return;
-
     const p = args.initial ?? null;
 
     setState((prev) => ({
@@ -54,9 +54,9 @@ export function useProductForm(args: {
       brandId: p?.brandId ?? null,
       categoryId: p?.categoryId ?? null,
 
-      // ✅ solo resetea baseUnit cuando es create
-      // ✅ si es edit, conserva el valor previo (aunque no se muestre)
-      baseUnit: args.mode === "create" ? "UNIT" : prev.baseUnit,
+      // ✅ en create decides la unidad de la variante base
+      // ✅ en edit NO la tocamos (la unidad real vive en variant)
+      pricingUnit: args.mode === "create" ? "UNIT" : prev.pricingUnit,
     }));
 
     setError(null);
@@ -66,18 +66,15 @@ export function useProductForm(args: {
     setState((s) => ({ ...s, ...p }));
   }
 
-  function validate():
-    | { ok: true; value: ProductFormValue }
-    | { ok: false; error: string } {
+  function validate(): { ok: true; value: ProductFormValue } | { ok: false; error: string } {
     const name = normalizeRequiredText(state.name);
     if (!name) return { ok: false, error: "Nombre requerido." };
 
     const categoryId = state.categoryId?.trim() ?? "";
     if (!categoryId) return { ok: false, error: "Categoría requerida." };
 
-    // ✅ si tu UI lo muestra solo en create, igual garantizamos aquí
-    if (args.mode === "create" && !state.baseUnit) {
-      return { ok: false, error: "Unidad base requerida." };
+    if (args.mode === "create" && !state.pricingUnit) {
+      return { ok: false, error: "Unidad requerida." };
     }
 
     return {
@@ -88,8 +85,7 @@ export function useProductForm(args: {
         description: normalizeOptionalText(state.description),
         brandId: state.brandId,
         categoryId,
-        // ✅ en edit no se usa, pero el submitProduct NO lo manda en update
-        baseUnit: state.baseUnit,
+        pricingUnit: state.pricingUnit,
       },
     };
   }

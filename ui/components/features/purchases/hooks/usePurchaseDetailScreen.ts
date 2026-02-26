@@ -1,3 +1,4 @@
+// src/modules/purchases/hooks/usePurchaseDetailScreen.ts
 "use client";
 
 import * as React from "react";
@@ -79,26 +80,23 @@ export function usePurchaseDetailScreen(purchaseId: string): PurchaseDetailVm {
     void reload();
   }, [reload]);
 
-  const flags = React.useMemo(() => {
+  const flags: PurchaseFlags = React.useMemo(() => {
     const status = purchase?.status ?? "DRAFT";
-    const itemsCount = purchase?.items?.length ?? 0;
+    const dirty = editor.dirty;
 
-    const canSaveItems = status === "DRAFT" && editor.dirty;
-    const canOrder = status === "DRAFT" && itemsCount > 0 && !editor.dirty;
-    const canReceive = status === "ORDERED" && itemsCount > 0 && !editor.dirty;
+    const live = draftTotals(editor.lines);
+    const serverItemsCount = purchaseItemsCount(purchase);
+
+    const itemsCount = status === "DRAFT" ? live.items : serverItemsCount;
+
+    const canSaveItems = status === "DRAFT" && dirty;
+    const canOrder = status === "DRAFT" && itemsCount > 0 && !dirty;
+    const canReceive = status === "ORDERED" && itemsCount > 0 && !dirty;
     const canCancel = status !== "RECEIVED";
+    const showEmptyItemsWarning = (status === "DRAFT" || status === "ORDERED") && itemsCount === 0;
 
-    return {
-      status,
-      itemsCount,
-      canSaveItems,
-      canOrder,
-      canReceive,
-      canCancel,
-      showEmptyItemsWarning: (status === "DRAFT" || status === "ORDERED") && itemsCount === 0,
-    };
-  }, [purchase?.status, purchase?.items?.length, editor.dirty]);
-
+    return { status, itemsCount, canSaveItems, canOrder, canReceive, canCancel, showEmptyItemsWarning };
+  }, [purchase, editor.dirty, editor.lines]);
 
   return {
     purchaseId,

@@ -26,7 +26,6 @@ function toPurchasesQuery(q?: ListPurchasesQuery): string {
   if (q.status) qs.set("status", q.status);
   if (q.warehouseId) qs.set("warehouseId", q.warehouseId);
 
-  // ✅ fechas
   if (q.from) qs.set("from", q.from);
   if (q.to) qs.set("to", q.to);
 
@@ -62,19 +61,10 @@ export class PurchaseHttpAdapter implements PurchasePort {
   }
 
   order(purchaseId: string): Promise<OrderPurchaseResponse> {
-    return apiClient.json(
-      `/api/v1/purchases/${purchaseId}/order`,
-      { method: "POST" },
-    );
+    return apiClient.json(`/api/v1/purchases/${purchaseId}/order`, { method: "POST" });
   }
 
-  cancel(
-    purchaseId: string,
-    input?: CancelPurchaseInput,
-  ): Promise<CancelPurchaseResponse> {
-    return apiClient.json(
-      `/api/v1/purchases/${purchaseId}/cancel`,
-      { method: "POST", body: input ?? {} },
-    );
+  cancel(purchaseId: string, input?: CancelPurchaseInput): Promise<CancelPurchaseResponse> {
+    return apiClient.json(`/api/v1/purchases/${purchaseId}/cancel`, { method: "POST", body: input ?? {} });
   }
 }

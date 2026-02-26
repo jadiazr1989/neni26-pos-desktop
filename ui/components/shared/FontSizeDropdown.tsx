@@ -30,7 +30,6 @@ function readFontSize(): FontSize {
 function applyFontSize(v: FontSize): void {
   document.documentElement.dataset.font = v;
   window.localStorage.setItem(STORAGE_KEY, v);
-  console.log("font set:", v, document.documentElement.dataset.font);
 }
 
 

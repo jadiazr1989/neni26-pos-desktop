@@ -15,6 +15,7 @@ import {
   BadgeCheck,
   Warehouse,
   Move,
+  StoreIcon,
 } from "lucide-react";
 
 import { ROUTES, type RouteId, type UserRole } from "@/core/routing/routeRegistry";
@@ -46,13 +47,14 @@ export const ADMIN_NAV: NavItem[] = [
 
   { key: "inventory", label: "Inventario", routeId: "adminInventory", icon: Package },
   { key: "adjustments", label: "Ajustes", routeId: "adminAdjustments", icon: Move },
-  { key: "warehouse", label: "Warehouse", routeId: "adminWarehouses", icon: Warehouse },
+  { key: "warehouse", label: "Almacenes", routeId: "adminWarehouses", icon: Warehouse },
   { key: "users", label: "Usuarios", routeId: "adminUsers", icon: Users },
-  { key: "settings", label: "Configuración", routeId: "adminSettings", icon: Settings },
+  { key: "settings", label: "Terminales", routeId: "adminSettings", icon: Settings },
   { key: "device", label: "Dispositivo", routeId: "adminDevice", icon: Monitor },
 
   { key: "purchases", label: "Compras", routeId: "adminPurchases", icon: ClipboardList },
   { key: "reports", label: "Reportes", routeId: "adminReports", icon: BarChart3 },
+  { key: "storage", label: "Tienda", routeId: "adminStoreSettings", icon: StoreIcon },
 ];
 
 export function filterByRole(items: NavItem[], role: Role | null): NavItem[] {

@@ -1,4 +1,3 @@
-// src/modules/catalog/brands/ui/BrandDialog.tsx
 "use client";
 
 import * as React from "react";
@@ -11,7 +10,6 @@ import { notify } from "@/lib/notify/notify";
 import { slugify } from "@/lib/slugify";
 
 type Mode = "create" | "edit";
-
 type SubmitPayload = { name: string; slug: string };
 
 export function BrandDialog(props: {
@@ -21,12 +19,16 @@ export function BrandDialog(props: {
   loading?: boolean;
   onOpenChange: (v: boolean) => void;
   onSubmit: (p: SubmitPayload) => Promise<void>;
+
+  // ✅ nuevo: pedir delete (lo confirma el Screen)
+  onRequestDelete?: (b: BrandDTO) => void;
 }) {
   const [name, setName] = React.useState("");
   const [slug, setSlug] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
 
   const disabled = Boolean(props.loading) || submitting;
+  const canDelete = props.mode === "edit" && !!props.initial && !disabled;
 
   const slugTouchedRef = React.useRef(false);
 
@@ -37,9 +39,7 @@ export function BrandDialog(props: {
     setName(b?.name ?? "");
     setSlug(b?.slug ?? "");
 
-    // create: auto si no toca
-    // edit: no auto (a menos que venga vacío)
-    slugTouchedRef.current = props.mode === "edit" ? true : false;
+    slugTouchedRef.current = props.mode === "edit";
     if (props.mode === "create") slugTouchedRef.current = false;
     if (props.mode === "edit" && !(b?.slug ?? "").trim()) slugTouchedRef.current = false;
   }, [props.open, props.initial, props.mode]);
@@ -80,6 +80,12 @@ export function BrandDialog(props: {
     }
   }
 
+  function requestDelete() {
+    const b = props.initial;
+    if (!b) return;
+    props.onRequestDelete?.(b);
+  }
+
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="sm:max-w-lg p-0">
@@ -93,13 +99,39 @@ export function BrandDialog(props: {
         <div className="px-6 py-6 space-y-4">
           <div className="grid gap-2">
             <div className="text-sm font-medium">Nombre</div>
-            <Input value={name} onChange={(e) => onNameChange(e.target.value)} placeholder="Ej: Coca-Cola" disabled={disabled} />
+            <Input
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+              placeholder="Ej: Coca-Cola"
+              disabled={disabled}
+            />
           </div>
 
           <div className="grid gap-2">
             <div className="text-sm font-medium">Slug</div>
-            <Input value={slug} onChange={(e) => onSlugChange(e.target.value)} placeholder="ej: coca-cola" disabled={disabled} />
+            <Input
+              value={slug}
+              onChange={(e) => onSlugChange(e.target.value)}
+              placeholder="ej: coca-cola"
+              disabled={disabled}
+            />
           </div>
+
+          {props.mode === "edit" ? (
+            <div className="pt-2">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4">
+                <div className="text-sm font-medium text-rose-900">Zona peligrosa</div>
+                <div className="mt-1 text-xs text-rose-900/80">
+                  Eliminar una marca es permanente. Si tiene productos asociados, la operación será rechazada.
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <Button variant="destructive" onClick={requestDelete} disabled={!canDelete}>
+                    Eliminar…
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="px-6 py-4 border-t border-border bg-background flex justify-end gap-2">

@@ -1,36 +1,36 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
 import * as React from "react";
-import { money } from "../../hooks/purchaseDetail.helpers";
+import { AlertTriangle } from "lucide-react";
+
 import type { PurchaseDetailVm } from "../../hooks/purchaseDetail.types";
-import { minorToMoneyString } from "@/lib/money/money";
+import { moneyStrToLabelCUP, type MoneyStr } from "@/lib/money/moneyStr";
+import { draftTotals } from "../../hooks/purchaseDetail.helpers";
 
 function shortId(id?: string | null) {
   if (!id) return "—";
   return `${id.slice(0, 8)}…${id.slice(-4)}`;
 }
 
-function calcLive(lines: PurchaseDetailVm["editor"]["lines"]) {
-  const items = lines.length;
-  const subtotalMinor = lines.reduce(
-    (acc, l) => acc + Number(l.quantity ?? 0) * Number(l.unitCostBaseMinor ?? 0),
-    0,
-  );
-  const totalMinor = subtotalMinor; // por ahora sin impuestos
-  return { items, subtotalMinor, totalMinor };
+/** Acepta MoneyStr o number y siempre devuelve etiqueta CUP */
+function toCupLabel(v: MoneyStr | number | null | undefined) {
+  if (v == null) return "—";
+  if (typeof v === "string") return moneyStrToLabelCUP(v);
+  return moneyStrToLabelCUP(String(Math.trunc(v)));
 }
 
 export function PurchaseSummaryInline({ vm }: { vm: PurchaseDetailVm }) {
   const p = vm.purchase;
 
-  const live = React.useMemo(() => calcLive(vm.editor.lines), [vm.editor.lines]);
+  // Live totals: usa draftTotals, que ahora mezcla snapshot + preview local
+  const live = React.useMemo(() => draftTotals(vm.editor.lines), [vm.editor.lines]);
 
-  const showLive = vm.flags.status === "DRAFT"; // o: vm.flags.status==="DRAFT" && vm.editor.dirty
+  const showLive = vm.flags.status === "DRAFT" && vm.editor.dirty;
 
   const items = showLive ? live.items : vm.flags.itemsCount;
-  const subtotal = showLive ? live.subtotalMinor : p?.subtotalBaseMinor;
-  const total = showLive ? live.totalMinor : p?.totalBaseMinor;
+
+  const subtotalAny = showLive ? live.subtotalBaseMinor : (p?.subtotalBaseMinor ?? null);
+  const totalAny = showLive ? live.totalBaseMinor : (p?.totalBaseMinor ?? null);
 
   return (
     <div
@@ -50,6 +50,12 @@ export function PurchaseSummaryInline({ vm }: { vm: PurchaseDetailVm }) {
             <span className="font-mono text-sm truncate">{shortId(p?.warehouseId ?? null)}</span>
             <span className="mx-2 text-muted-foreground">•</span>
             <span className="text-sm font-medium">{vm.flags.status}</span>
+
+            {showLive ? (
+              <span className="ml-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                Preview
+              </span>
+            ) : null}
           </div>
 
           {vm.flags.showEmptyItemsWarning ? (
@@ -63,17 +69,17 @@ export function PurchaseSummaryInline({ vm }: { vm: PurchaseDetailVm }) {
         <div className="flex items-center gap-5 shrink-0">
           <div className="text-right">
             <div className="text-[11px] text-muted-foreground leading-4">Items</div>
-            <div className=" font-semibold leading-5">{items}</div>
+            <div className="font-semibold leading-5">{items}</div>
           </div>
 
           <div className="text-right">
             <div className="text-[11px] text-muted-foreground leading-4">Subtotal</div>
-            <div className=" font-semibold leading-5">${subtotal == null ? "—" : minorToMoneyString(subtotal, { scale: 2 })}</div>
+            <div className="font-semibold leading-5">{toCupLabel(subtotalAny)}</div>
           </div>
 
           <div className="text-right">
             <div className="text-[11px] text-muted-foreground leading-4">Total</div>
-            <div className=" font-semibold leading-5">${total == null ? "—" : minorToMoneyString(total, { scale: 2 })}</div>
+            <div className="font-semibold leading-5">{toCupLabel(totalAny)}</div>
           </div>
         </div>
       </div>

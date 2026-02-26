@@ -1,182 +1,233 @@
+// src/modules/admin/dashboard/AdminDashboardScreen.tsx
 "use client";
 
-import {
-  AlertTriangle,
-  ArrowRight,
-  ClipboardList,
-  Package,
-  Plus,
-  ShoppingCart,
-  Wallet,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import { TrendingDown, TrendingUp } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { AdminDashboardDataV2 } from "@/lib/modules/admin/dashboard/admin-dashboard.dto";
 
-import type { AdminDashboardRange } from "@/lib/modules/admin/dashboard/admin-dashboard.dto";
-import { useAdminDashboard } from "./hooks/useAdminDashboard";
-
-import { buildProductDetailHref } from "./routing/dashboard-links";
-import { DashboardTrendChart } from "./ui/charts/DashboardTrendChart";
 import { DashboardHeader } from "./ui/DashboardHeader";
 import { DashboardScopeBadges } from "./ui/DashboardScopeBadges";
-import { EmptyBlock } from "./ui/EmptyBlock";
-import { KpiCard } from "./ui/KpiCard";
-import { MiniAlert } from "./ui/MiniAlert";
-import { buildDashboardVM, makeDateTimeFormatter, makeMoneyFormatter, TopProductVM } from "./ui/presenter/admin-dashboard.presenter";
-import { QuickAction } from "./ui/QuickAction";
 
+import { formatMoneyFromBaseMinorStr } from "./utils/dashboardMoney";
+import { formatPctBpsSigned, moneyToneByDelta } from "./utils/dashboardDeltas";
 
+import { ComparisonToolbar } from "./ui/ComparisonToolbar";
+import { DeltaChip } from "./ui/DeltaChip";
+import { OperationalBannerCompact } from "./ui/OperationalBannerCompact";
+
+import { DashboardKpisSection } from "./sections/DashboardKpisSection";
+import { DashboardAttentionSection } from "./sections/DashboardAttentionSection";
+import { DashboardTrendSection } from "./sections/DashboardTrendSection";
+import { DashboardInsightsSection } from "./sections/DashboardInsightsSection";
+
+import { DashboardQuickActionsSection } from "./sections/DashboardQuickActionsSection";
+import { DashboardCashSection } from "./sections/DashboardCashSection";
+
+import { DashboardInventorySection } from "./sections/DashboardInventorySection";
+import { DashboardPaymentsSection } from "./sections/DashboardPaymentsSection";
+import { DashboardOperationSection } from "./sections/DashboardOperationSection";
+import { DashboardStockCoverageCard } from "./sections/DashboardStockCoverageCard";
+
+import { useAdminDashboard } from "./hooks/useAdminDashboard";
+import { DashboardHealthCard } from "./sections/DashboardHealthCard";
 
 export function AdminDashboardScreen() {
   const router = useRouter();
-  const [range, setRange] = React.useState<AdminDashboardRange>("today");
 
-  const { data, loading, refresh } = useAdminDashboard(range);
+  const {
+    data,
+    loading,
+    error,
+    refresh,
+    range,
+    rangeLabel,
+    rangeLabelShort,
+    setRange,
+  } = useAdminDashboard("today");
 
-  const money = React.useMemo(() => makeMoneyFormatter("es-CU", "CUP"), []);
-  const dateTime = React.useMemo(() => makeDateTimeFormatter("es-ES"), []);
+  const money = React.useCallback(
+    (baseMinorStr: string) => formatMoneyFromBaseMinorStr(baseMinorStr, "es-CU", "CUP"),
+    []
+  );
 
-  const vm = React.useMemo(() => {
+  const scopeNode = React.useMemo(() => {
     if (!data) return null;
-    return buildDashboardVM({ data, money, dateTime });
-  }, [data, money, dateTime]);
+    return (
+      <DashboardScopeBadges
+        storeId={data.scope.storeId}
+        warehouseId={data.scope.warehouseId}
+      />
+    );
+  }, [data]);
 
-  function onTopProductClick(p: TopProductVM) {
-    if (!p.productId) return;
-    router.push(buildProductDetailHref(p.productId, { variantId: p.variantId }));
-  }
+  const netPct = data
+    ? formatPctBpsSigned(data.comparison.netSalesDeltaPctBps)
+    : { label: "—", tone: "neutral" as const };
+
+  const netDeltaTone = data ? moneyToneByDelta(data.comparison.netSalesDeltaBaseMinor) : "neutral";
+  const avgDeltaTone = data ? moneyToneByDelta(data.comparison.avgTicketDeltaBaseMinor) : "neutral";
+  const refundsDeltaTone = data ? moneyToneByDelta(data.comparison.refundsDeltaBaseMinor) : "neutral";
+
+  // ✅ NO cast: el tipo sale del propio DTO
+  type ProfitRow =
+    NonNullable<AdminDashboardDataV2["profitability"]>["topProfitProducts"][number];
+
+  const onTopProductClick = React.useCallback(
+    (p: ProfitRow) => {
+      void p;
+      router.push("/admin/inventory");
+    },
+    [router]
+  );
+
+  const paymentsSorted = React.useMemo(() => {
+    if (!data) return [];
+    return [...data.paymentsByMethod].sort((a, b) => (b.pctBps ?? 0) - (a.pctBps ?? 0));
+  }, [data]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <DashboardHeader
         range={range}
         onRangeChange={setRange}
-        onRefresh={refresh}
+        onRefresh={() => void refresh()}
         loading={loading}
         onReports={() => router.push("/admin/reports")}
         onGoProducts={() => router.push("/admin/products")}
-        component={vm && <DashboardScopeBadges storeId={data!.scope.storeId}
-          warehouseId={data!.scope.warehouseId} />}
+        component={scopeNode}
       />
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <MiniAlert
-          icon={AlertTriangle}
-          title="Ajustes de stock"
-          value={vm?.alerts.pendingAdjustments ?? 0}
-          hint="Correcciones manuales (conteo, roturas, etc.)"
-          onClick={() => router.push("/admin/adjustments")}
-        />
+      <DashboardKpisSection
+        data={data}
+        money={money}
+        netDeltaTone={netDeltaTone}
+        avgDeltaTone={avgDeltaTone}
+        rangeLabelShort={rangeLabelShort}
+      />
 
-        <MiniAlert
-          icon={ShoppingCart}
-          title="Compras pendientes"
-          value={vm?.alerts.purchasesDraft ?? 0}
-          hint="Aún no entran al stock"
-          onClick={() => router.push("/admin/purchases?status=DRAFT")}
-        />
+      <ComparisonToolbar
+        left={
+          <div className="-mx-4 px-4 overflow-x-auto">
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <span className="text-xs text-muted-foreground mr-1">Comparación</span>
 
-        <MiniAlert
-          icon={ClipboardList}
-          title="Compras en camino"
-          value={vm?.alerts.purchasesOrdered ?? 0}
-          hint="Esperando entrada al almacén"
-          onClick={() => router.push("/admin/purchases?status=ORDERED")}
-        />
-      </div>
+              <DeltaChip
+                label={`Net ${netPct.label}`}
+                tone={netPct.tone}
+                icon={
+                  netPct.tone === "good" ? (
+                    <TrendingUp className="size-3" />
+                  ) : netPct.tone === "bad" ? (
+                    <TrendingDown className="size-3" />
+                  ) : null
+                }
+              />
+              <DeltaChip
+                label={`Δ Net ${data ? money(data.comparison.netSalesDeltaBaseMinor) : "—"}`}
+                tone={netPct.tone}
+              />
+              <DeltaChip
+                label={`Δ Avg ${data ? money(data.comparison.avgTicketDeltaBaseMinor) : "—"}`}
+                tone={avgDeltaTone}
+              />
+              <DeltaChip
+                label={`Δ Devol. ${data ? money(data.comparison.refundsDeltaBaseMinor) : "—"}`}
+                tone={refundsDeltaTone}
+              />
+            </div>
+          </div>
+        }
+        right={
+          <>
+            Período: {rangeLabelShort} · Zona horaria: {data?.period.tz ?? "—"}
+          </>
+        }
+      />
 
+      <OperationalBannerCompact
+        alerts={data?.alerts ?? []}
+        loading={loading}
+        onGo={() => router.push("/admin/inventory")}
+      />
 
-      {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <KpiCard title={vm?.kpis[0]?.title ?? "Ventas netas"} value={vm?.kpis[0]?.value ?? "—"} hint={vm?.kpis[0]?.hint ?? ""} tone={vm?.kpis[0]?.tone} />
-        <KpiCard title={vm?.kpis[1]?.title ?? "Tickets"} value={vm?.kpis[1]?.value ?? "—"} hint={vm?.kpis[1]?.hint ?? ""} tone={vm?.kpis[1]?.tone} />
-        <KpiCard title={vm?.kpis[2]?.title ?? "Ticket promedio"} value={vm?.kpis[2]?.value ?? "—"} hint={vm?.kpis[2]?.hint ?? ""} tone={vm?.kpis[2]?.tone} />
-        <KpiCard title="Caja" value={vm?.cash.label ?? "—"} hint={vm?.cash.hint ?? ""} tone={vm?.cash.tone} />
-      </div>
+      <DashboardAttentionSection data={data} onNav={(p) => router.push(p)} />
 
+      <div className="grid gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-8 space-y-5">
+          <DashboardTrendSection
+            data={data}
+            loading={loading}
+            error={error}
+            range={range}
+            rangeLabelShort={rangeLabelShort}
+          />
 
-      {/* Main grid */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-8">
-          <CardHeader className="pb-2">
-            <CardTitle className="">Tendencia</CardTitle>
-            <div className="text-xs text-muted-foreground">Bar: tickets · Line: ventas netas</div>
-          </CardHeader>
-          <CardContent>
-            {vm ? (
-              <DashboardTrendChart data={vm.trend} />
-            ) : (
-              <EmptyBlock loading={loading} label="Cargando tendencia..." />
-            )}
-          </CardContent>
-        </Card>
+          <DashboardInsightsSection
+            data={data}
+            loading={loading}
+            rangeLabel={rangeLabel}
+            money={money}
+            onGoReports={() => router.push("/admin/reports")}
+            onTopProductClick={onTopProductClick}
+          />
 
-        <div className="lg:col-span-4 space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="">Acciones rápidas</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              <QuickAction icon={Plus} title="Crear producto" subtitle="Alta rápida en catálogo" onClick={() => router.push("/admin/products/new")} />
-              <QuickAction icon={Package} title="Ajustar inventario" subtitle="Movimientos/correcciones" onClick={() => router.push("/admin/inventory")} />
-              <QuickAction icon={Wallet} title="Caja" subtitle="Sesiones/cierres" onClick={() => router.push("/admin/cash")} />
-            </CardContent>
-          </Card>
+          <DashboardInventorySection
+            data={data}
+            loading={loading}
+            rangeLabelShort={rangeLabelShort}
+            onNav={(p) => router.push(p)}
+          />
+        </div>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="">Top productos</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {!vm ? (
-                <EmptyBlock loading={loading} label="Cargando top productos..." />
-              ) : vm.topProducts.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Sin datos en este rango.</div>
-              ) : (
-                vm.topProducts.map((p) => (
-                  <button
-                    key={p.variantId}
-                    onClick={() => onTopProductClick(p)}
-                    className="w-full text-left flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 hover:bg-accent/30 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{p.label}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {p.qty} uds · {money(p.revenueBaseMinor)}
-                      </div>
-                    </div>
-                    <ArrowRight className="size-4 text-muted-foreground" />
-                  </button>
-                ))
-              )}
-            </CardContent>
-          </Card>
+        <div className="lg:col-span-4 space-y-5">
+          <DashboardHealthCard
+            data={data}
+            loading={loading}
+            rangeLabelShort={rangeLabelShort}
+            onGo={(p) => router.push(p)}
+          />
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="">Pagos por método</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {!vm ? (
-                <EmptyBlock loading={loading} label="Cargando pagos..." />
-              ) : vm.paymentsByMethod.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Sin pagos registrados.</div>
-              ) : (
-                vm.paymentsByMethod.map((p) => (
-                  <div key={p.method} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                    <div className="text-sm">{p.method}</div>
-                    <div className="text-sm font-medium tabular-nums">
-                      {p.amountLabel} <span className="text-xs text-muted-foreground">({p.count})</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          <DashboardQuickActionsSection
+            data={data}
+            loading={loading}
+            money={money}
+            onNav={(p) => router.push(p)}
+          />
+
+          <DashboardCashSection
+            data={data}
+            loading={loading}
+            money={money}
+            rangeLabelShort={rangeLabelShort}
+          />
+
+          <DashboardPaymentsSection
+            loading={loading || !data}
+            rangeLabelShort={rangeLabelShort}
+            rows={paymentsSorted.map((p) => ({
+              method: p.method,
+              count: p.count,
+              pctBps: p.pctBps ?? 0,
+              amountBaseMinor: p.amountBaseMinor,
+            }))}
+          />
+
+          <DashboardStockCoverageCard
+            data={data}
+            loading={loading}
+            rangeLabelShort={rangeLabelShort}
+          />
         </div>
       </div>
+
+      <DashboardOperationSection
+        data={data}
+        loading={loading}
+        rangeLabelShort={rangeLabelShort}
+        money={money}
+      />
     </div>
   );
 }

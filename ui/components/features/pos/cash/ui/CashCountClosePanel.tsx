@@ -25,16 +25,13 @@ export function CashCountClosePanel(props: {
   const title = props.mode === "COUNT" ? "Arqueo de caja" : "Cierre de caja";
 
   const run = React.useCallback(async () => {
-    console.log("[CashCountClosePanel] run called. mode=", props.mode);
 
     if (loading) {
-      console.log("[CashCountClosePanel] run skipped: loading=true");
       return;
     }
 
     const { counted: rebuilt, error: err } = buildCounted(cup, usd);
     if (err) {
-      console.log("[CashCountClosePanel] buildCounted error:", err);
       setError(err);
       return;
     }
@@ -52,7 +49,6 @@ export function CashCountClosePanel(props: {
       await props.onCloseCash(rebuilt);
       props.onClose();
     } catch (e) {
-      console.log("[CashCountClosePanel] run error:", e);
       setError(e instanceof Error ? e.message : "No se pudo completar la operación.");
     } finally {
       setLoading(false);
@@ -60,7 +56,6 @@ export function CashCountClosePanel(props: {
   }, [cup, usd, loading, props.mode, props.onClose, props.onCloseCash, props.onCount]);
 
   const submit = React.useCallback(() => {
-    console.log("[CashCountClosePanel] submit called. mode=", props.mode);
 
     if (props.mode === "CLOSE") {
       setConfirmCloseOpen(true);
@@ -123,7 +118,6 @@ export function CashCountClosePanel(props: {
         destructive
         busy={loading}
         onConfirm={async () => {
-          console.log("[CashCountClosePanel] confirm OK clicked");
           setConfirmCloseOpen(false);
           await run();
         }}

@@ -43,7 +43,7 @@ export const useFavorites = create<FavoritesState>()(
           if (next[key]) delete next[key];
           else next[key] = true;
 
-          return { ids: next, rev: s.rev + 1 };
+          return { ids: next, hydrated: true, rev: s.rev + 1 }; // ✅ hydrated true
         }),
 
       hydrate: async () => {

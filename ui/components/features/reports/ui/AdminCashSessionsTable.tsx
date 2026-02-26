@@ -5,10 +5,7 @@ import { ChevronRight } from "lucide-react";
 
 import { VirtualDataTable, type VirtualColumnDef } from "@/components/shared/VirtualDataTable";
 import type { CashSessionListRowDTO } from "@/lib/modules/admin/reports";
-
-function fmtMoneyMinor(n: number) {
-  return new Intl.NumberFormat().format(n);
-}
+import { formatBaseMinorCUP } from "@/lib/money/formatBaseMoney";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString();
@@ -46,26 +43,23 @@ function buildColumns(): Array<VirtualColumnDef<CashSessionListRowDTO>> {
       key: "gross",
       header: "Gross",
       className: "col-span-2 text-xs text-muted-foreground",
-      render: (r) => fmtMoneyMinor(r.grossSalesMinor),
+      render: (r) => formatBaseMinorCUP(r.grossSalesBaseMinor),
     },
     {
       key: "netCash",
       header: "Net Cash",
       className: "col-span-2 text-xs text-muted-foreground",
-      render: (r) => fmtMoneyMinor(r.netCashMinor),
+      render: (r) => formatBaseMinorCUP(r.netCashBaseMinor),
     },
     {
       key: "actions",
-      header: <span className="w-full text-right block">Acc.</span>,
+      header: <span className="w-full text-right block">Estado</span>,
       className: "col-span-1",
       render: (r) => {
         const s = statusLabel(r.closedAt);
         return (
           <div className="flex items-center justify-end gap-2">
-            <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${s.className}`}>
-              {s.label}
-            </span>
-            <ChevronRight className="size-4 text-muted-foreground" />
+            <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${s.className}`}>{s.label}</span>
           </div>
         );
       },

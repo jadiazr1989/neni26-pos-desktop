@@ -6,9 +6,10 @@ import { Pencil, Trash2, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import { lineTotalMinor } from "../../hooks/purchaseDetail.helpers";
 import type { DraftLine } from "../../hooks/purchaseDetail.types";
 import { minorToMoneyString } from "@/lib/money/money";
+import { moneyStrToLabelCUP } from "@/lib/money/moneyStr";
+import { lineTotalBaseMinorForUi } from "../../hooks/purchaseDetail.helpers";
 
 function shortId(id: string) {
   return `${id.slice(0, 6)}…${id.slice(-3)}`;
@@ -24,6 +25,13 @@ function Stat({ value }: { value: React.ReactNode }) {
   return <div className="text-right font-semibold tabular-nums">{value}</div>;
 }
 
+function safeQtyText(l: DraftLine): string {
+  if (l.qtyDisplay && l.displayUnit) return `${l.qtyDisplay} ${l.displayUnit}`;
+  const q = String(l.qtyInput ?? "").trim();
+  const unit = String(l.unitInput ?? "UNIT").trim();
+  return `${q || "0"} ${unit}`;
+}
+
 export function PurchaseItemsList(props: {
   disabled: boolean;
   lines: DraftLine[];
@@ -36,10 +44,9 @@ export function PurchaseItemsList(props: {
 
   return (
     <div className="rounded-xl border bg-background overflow-hidden">
-      {/* Header */}
       <div
         className="grid items-center gap-3 border-b px-3 py-2 text-xs text-muted-foreground"
-        style={{ gridTemplateColumns: "1fr 72px 110px 120px 88px" }}
+        style={{ gridTemplateColumns: "1fr 110px 110px 140px 88px" }}
       >
         <div>Item</div>
         <div className="text-right">Qty</div>
@@ -48,11 +55,14 @@ export function PurchaseItemsList(props: {
         <div />
       </div>
 
-      {/* Rows */}
       <div className="divide-y">
         {props.lines.map((l, idx) => {
           const v = l.variant ?? null;
-          const total = lineTotalMinor(l);
+
+          // ✅ Total para UI:
+          // - si existe snapshot (backend) lo usa
+          // - si no existe, calcula preview local (qtyInput * unitCostBaseMinor) BigInt-safe
+          const totalStr = lineTotalBaseMinorForUi(l);
 
           const title = v?.title ?? "Variante";
           const productName = v?.productName ?? "—";
@@ -63,9 +73,8 @@ export function PurchaseItemsList(props: {
             <div
               key={`${l.productVariantId}-${idx}`}
               className="grid items-center gap-3 px-3 py-2"
-              style={{ gridTemplateColumns: "1fr 72px 110px 120px 88px" }}
+              style={{ gridTemplateColumns: "1fr 110px 110px 140px 88px" }}
             >
-              {/* Item */}
               <div className="min-w-0">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="truncate font-medium text-[15px] leading-5">{title}</div>
@@ -87,16 +96,10 @@ export function PurchaseItemsList(props: {
                 </div>
               </div>
 
-              {/* Qty */}
-              <Stat value={l.quantity} />
+              <Stat value={safeQtyText(l)} />
+              <Stat value={minorToMoneyString(l.unitCostBaseMinor ?? 0, { scale: 2 })} />
+              <Stat value={totalStr == null ? "—" : moneyStrToLabelCUP(totalStr)} />
 
-              {/* Cost */}
-              <Stat value={minorToMoneyString(l.unitCostBaseMinor, { scale: 2 })} />
-
-              {/* Total */}
-              <Stat value={minorToMoneyString(total, { scale: 2 })} />
-
-              {/* Actions */}
               <div className="flex justify-end gap-1">
                 <Button
                   size="icon"

@@ -1,17 +1,13 @@
 "use client";
 
+import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import type { PurchaseWithItemsDTO } from "@/lib/modules/purchases/purchase.dto";
-import * as React from "react";
+import { moneyStrToLabelCUP } from "@/lib/money/moneyStr";
 
 function shortId(id?: string | null) {
   if (!id) return "—";
   return `${id.slice(0, 8)}…${id.slice(-4)}`;
-}
-
-function money(n?: number | null) {
-  if (n == null) return "—";
-  return new Intl.NumberFormat().format(n);
 }
 
 function toneFor(status?: string | null) {
@@ -33,7 +29,7 @@ function Stat(props: { label: string; value: React.ReactNode }) {
   return (
     <div className="text-right leading-tight">
       <div className="text-[11px] text-muted-foreground">{props.label}</div>
-      <div className=" font-semibold">{props.value}</div>
+      <div className="font-semibold">{props.value}</div>
     </div>
   );
 }
@@ -49,9 +45,10 @@ export function PurchaseSummaryBar({
 
   const itemsCount = purchase.items?.length ?? 0;
   const status = purchase.status ?? null;
-
   const t = toneFor(status);
 
+  const subtotal = purchase.subtotalBaseMinor ?? null;
+  const total = purchase.totalBaseMinor ?? null;
 
   return (
     <div
@@ -74,11 +71,11 @@ export function PurchaseSummaryBar({
           </div>
         </div>
 
-        {/* Right stats (very compact) */}
+        {/* Right stats */}
         <div className="flex items-center gap-4 shrink-0">
           <Stat label="Productos" value={itemsCount} />
-          <Stat label="Subtotal" value={money(purchase.subtotalBaseMinor)} />
-          <Stat label="Total" value={money(purchase.totalBaseMinor)} />
+          <Stat label="Subtotal" value={subtotal == null ? "—" : moneyStrToLabelCUP(subtotal)} />
+          <Stat label="Total" value={total == null ? "—" : moneyStrToLabelCUP(total)} />
         </div>
       </div>
     </div>

@@ -1,8 +1,34 @@
+import { MoneyStr } from "@/lib/money/moneyStr";
+
+
 export type CurrencyCode = "CUP" | "USD" | "EUR";
-export type PaymentMethodCode = "CASH" | "CARD" | "TRANSFER" | "OTHER"; 
-// ↑ ajusta a tus métodos reales del backend (los de PaymentMethod enum)
+export type PaymentMethodCode = "CASH" | "CARD" | "TRANSFER" | "OTHER";
 
 export type CashSessionStatusFilter = "open" | "closed" | "any";
+export type UserRoleCode = "ADMIN" | "MANAGER" | "CASHIER";
+
+export type UserLiteDTO = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  role: UserRoleCode;
+};
+
+export type CashSessionOperatorDTO = {
+  userId: string;
+
+  // actividad “ventas” (quién creó el ticket)
+  ticketsCount: number;
+
+  // montos base (BigInt->string)
+  grossSalesBaseMinor: MoneyStr;
+  refundsBaseMinor: MoneyStr;
+  netSalesBaseMinor: MoneyStr;
+
+  // opcional si quieres separar “cash handling”
+  cashSalesBaseMinor?: MoneyStr;
+  expensesBaseMinor?: MoneyStr;
+};
 
 export type CashSessionListRowDTO = {
   id: string;
@@ -12,9 +38,12 @@ export type CashSessionListRowDTO = {
   terminalName: string | null;
   openedAt: string;
   closedAt: string | null;
+
   ticketsCount: number;
-  grossSalesMinor: number;
-  netCashMinor: number;
+
+  // ✅ base minor BigInt serialized to string
+  grossSalesBaseMinor: MoneyStr;
+  netCashBaseMinor: MoneyStr;
 };
 
 export type CashSessionsListDTO = {
@@ -24,6 +53,8 @@ export type CashSessionsListDTO = {
 
 export type MoneyCountDTO = {
   currency: CurrencyCode;
+
+  // Conteos físicos en la moneda (minor int) -> number está OK
   openingMinor: number;
   expectedMinor: number;
   countedMinor: number;
@@ -33,23 +64,34 @@ export type MoneyCountDTO = {
 export type PaymentMixDTO = {
   method: PaymentMethodCode;
   currency: CurrencyCode;
+
+  // amount in payment currency minor (int)
   amountMinor: number;
+
+  // ✅ base minor BigInt serialized to string
+  amountBaseMinor: MoneyStr;
 };
 
 export type CashReportSummaryDTO = {
   ticketsCount: number;
-  grossSalesMinor: number;
-  cashSalesMinor: number;
-  refundsMinor: number;
-  expensesMinor: number;
-  netCashMinor: number;
+
+  // ✅ todo lo “summary financiero” debe ser base
+  grossSalesBaseMinor: MoneyStr;
+  cashSalesBaseMinor: MoneyStr;
+  refundsBaseMinor: MoneyStr;
+  expensesBaseMinor: MoneyStr;
+  netCashBaseMinor: MoneyStr;
+
   paymentsMix: PaymentMixDTO[];
+
   byCurrency: Array<{
     currency: CurrencyCode;
-    cashSalesMinor: number;
-    refundsMinor: number;
-    expensesMinor: number;
-    netCashMinor: number;
+
+    // esto puede ser útil para desglose, pero mantén base para que cuadre con overview
+    cashSalesBaseMinor: MoneyStr;
+    refundsBaseMinor: MoneyStr;
+    expensesBaseMinor: MoneyStr;
+    netCashBaseMinor: MoneyStr;
   }>;
 };
 
@@ -99,9 +141,18 @@ export type CashSessionAdminDetailDTO = {
     terminalName: string | null;
     openedAt: string;
     closedAt: string | null;
+
+    // siguen existiendo (IDs)
     openedById: string | null;
     closedById: string | null;
   };
+
+  // ✅ NUEVO: usuarios relevantes para render rápido
+  usersById: Record<string, UserLiteDTO>;
+
+  // ✅ NUEVO: “quién operó” + “cuánto vendió cada uno”
+  operators: CashSessionOperatorDTO[];
+
   xReport: CashReportDTO;
   zArtifact: ZArtifactDTO | null;
 };
@@ -109,32 +160,12 @@ export type CashSessionAdminDetailDTO = {
 export type ReportsDailyRowDTO = {
   day: string; // YYYY-MM-DD
   ticketsCount: number;
-  grossSalesMinor: number;
-  refundsMinor: number;
-  expensesMinor: number;
-  netMinor: number;
+
+  grossSalesBaseMinor: MoneyStr;
+  refundsBaseMinor: MoneyStr;
+  expensesBaseMinor: MoneyStr;
+  netBaseMinor: MoneyStr;
 };
-
-export type ReportsOverviewDTO = {
-  from: string;
-  to: string;
-
-  ticketsCount: number;
-  grossSalesMinor: number;
-  refundsMinor: number;
-  expensesMinor: number;
-  netMinor: number;
-
-  paymentsMix: PaymentMixDTO[];
-  byCurrency: Array<{
-    currency: CurrencyCode;
-    grossMinor: number;
-    refundsMinor: number;
-    expensesMinor: number;
-    netMinor: number;
-  }>;
-};
-
 
 // queries/responses
 export type ListCashSessionsQuery = {
@@ -145,12 +176,66 @@ export type ListCashSessionsQuery = {
   cursor?: string | null;
 };
 
+export type ReportsAlertSeverity = "info" | "warning" | "critical";
+
+export type ReportsAlertDTO = {
+  id: string;
+  severity: ReportsAlertSeverity;
+  title: string;
+  description: string;
+  meta?: Record<string, string | number | boolean | null>;
+};
+
+export type ReportsAlertsDTO = {
+  from: string;
+  to: string;
+  terminalId: string;
+  alerts: ReportsAlertDTO[];
+};
+
+export type PaymentMixSummaryDTO = {
+  totalsBaseMinor: Record<PaymentMethodCode, MoneyStr>;
+  pctBps: Record<PaymentMethodCode, number>; // 0..10000
+};
+
+export type ReportsOverviewDTO = {
+  from: string;
+  to: string;
+
+  ticketsCount: number;
+
+  grossSalesBaseMinor: MoneyStr;
+  refundsBaseMinor: MoneyStr;
+  netBaseMinor: MoneyStr;
+
+  // ✅ new
+  avgTicketBaseMinor: MoneyStr;
+  taxBaseMinor: MoneyStr;
+
+  // sigue existiendo
+  expensesBaseMinor: MoneyStr;
+
+  paymentsMix: PaymentMixDTO[];
+
+  // ✅ new
+  paymentsMixSummary: PaymentMixSummaryDTO;
+
+  byCurrency: Array<{
+    currency: CurrencyCode;
+    grossBaseMinor: MoneyStr;
+    refundsBaseMinor: MoneyStr;
+    expensesBaseMinor: MoneyStr;
+    taxBaseMinor: MoneyStr;
+    netBaseMinor: MoneyStr;
+  }>;
+};
+
+export type AdminAlertsResponse = ReportsAlertsDTO;
+export type AdminAlertsQuery = { from: string; to: string };
 
 export type AdminCashSessionsListResponse = CashSessionsListDTO;
 export type AdminCashSessionDetailResponse = { detail: CashSessionAdminDetailDTO };
-
 export type AdminDailySummaryResponse = { rows: ReportsDailyRowDTO[] };
-
 export type AdminOverviewResponse = { overview: ReportsOverviewDTO };
 
 export type AdminDailySummaryQuery = { from: string; to: string };

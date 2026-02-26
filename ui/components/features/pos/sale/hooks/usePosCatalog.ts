@@ -1,78 +1,100 @@
+// hooks/usePosCatalog.ts
 "use client";
 
 import * as React from "react";
 import { notify } from "@/lib/notify/notify";
-import type { ListPosCatalogQuery, ListPosCatalogResponse, PosCatalogRowDTO } from "@/lib/modules/catalog/products/product.dto";
+import type {
+  ListPosCatalogQuery,
+  ListPosCatalogResponse,
+  PosCatalogRowDTO,
+} from "@/lib/modules/catalog/products/product.dto";
 
-/**
- * ✅ DIP (Dependency Inversion):
- * - El hook depende de un "port" (interfaz), NO de productService directamente.
- * - Puedes testearlo inyectando un fake.
- */
 export interface PosCatalogPort {
   listPosCatalog(q: ListPosCatalogQuery): Promise<ListPosCatalogResponse>;
 }
 
-type State = {
-  rows: PosCatalogRowDTO[];
+type State<T> = {
+  rows: T[];
   cursor: string | null;
   loading: boolean;
   error: string | null;
 };
 
-function mergeUniqueByVariantId(prev: PosCatalogRowDTO[], next: PosCatalogRowDTO[]): PosCatalogRowDTO[] {
-  const m = new Map<string, PosCatalogRowDTO>();
-  for (const r of prev) m.set(r.variantId, r);
-  for (const r of next) m.set(r.variantId, r);
+function mergeUniqueByKey<T>(prev: T[], next: T[], keyOf: (row: T) => string): T[] {
+  const m = new Map<string, T>();
+  for (const r of prev) m.set(keyOf(r), r);
+  for (const r of next) m.set(keyOf(r), r);
   return Array.from(m.values());
 }
 
-function stableKey(params: {
+type Params<T> = {
+  categoryId?: string; // "all" | uuid
+  q?: string;
+  pageSize?: number;
+  inStock?: boolean;
+  rev?: number; // ✅
+
+  mapRow?: (row: PosCatalogRowDTO) => T;
+  keyOfRow?: (row: T) => string;
+};
+
+function stableKey(p: {
   categoryId: string;
   q: string;
   inStock: boolean;
   pageSize: number;
+  rev: number;
 }): string {
-  return JSON.stringify(params);
+  return `${p.categoryId}::${p.q}::${p.inStock ? 1 : 0}::${p.pageSize}::${p.rev}`;
 }
 
-export function usePosCatalog(
-  port: PosCatalogPort,
-  params?: {
-    categoryId?: string; // "all" | uuid
-    q?: string;
-    pageSize?: number;
-    inStock?: boolean;
-
-    /**
-     * ✅ opcional: transforma rows → cualquier VM.
-     * Mantiene UI tonta y sin casts.
-     */
-    mapRow?: (row: PosCatalogRowDTO) => unknown;
-  }
-) {
+export function usePosCatalog<T = PosCatalogRowDTO>(port: PosCatalogPort, params?: Params<T>) {
   const categoryId = (params?.categoryId ?? "all").trim() || "all";
   const q = (params?.q ?? "").trim();
   const pageSize = Math.max(1, Math.min(Number(params?.pageSize ?? 24), 50));
   const inStock = params?.inStock ?? true;
+  const rev = Math.max(0, Number(params?.rev ?? 0)); // ✅
 
   const key = React.useMemo(
-    () => stableKey({ categoryId, q, inStock, pageSize }),
-    [categoryId, q, inStock, pageSize]
+    () => stableKey({ categoryId, q, inStock, pageSize, rev }),
+    [categoryId, q, inStock, pageSize, rev]
   );
 
-  const [state, setState] = React.useState<State>({
+  const [state, setState] = React.useState<State<T>>({
     rows: [],
     cursor: null,
     loading: false,
     error: null,
   });
 
-  // ✅ evita actualizar state si cambia el "key" mientras una request está en vuelo
+  // ✅ keyRef para cancelar respuestas viejas
   const keyRef = React.useRef(key);
   React.useEffect(() => {
     keyRef.current = key;
   }, [key]);
+
+  // ✅ refs para estabilidad
+  const mapRowRef = React.useRef<((row: PosCatalogRowDTO) => T) | undefined>(params?.mapRow);
+  const keyOfRowRef = React.useRef<(row: T) => string>(
+    params?.keyOfRow ??
+      ((row: T) => {
+        const asDto = row as unknown as PosCatalogRowDTO;
+        return asDto.variantId;
+      })
+  );
+
+  React.useEffect(() => {
+    mapRowRef.current = params?.mapRow;
+  }, [params?.mapRow]);
+
+  React.useEffect(() => {
+    keyOfRowRef.current =
+      params?.keyOfRow ??
+      ((row: T) => {
+        const asDto = row as unknown as PosCatalogRowDTO;
+        return asDto.variantId;
+      });
+  }, [params?.keyOfRow]);
 
   const loadFirst = React.useCallback(async () => {
     const myKey = keyRef.current;
@@ -90,8 +112,11 @@ export function usePosCatalog(
 
       if (keyRef.current !== myKey) return;
 
+      const mapper = mapRowRef.current;
+      const mapped = mapper ? res.rows.map(mapper) : (res.rows as unknown as T[]);
+
       setState({
-        rows: res.rows,
+        rows: mapped,
         cursor: res.nextCursor,
         loading: false,
         error: null,
@@ -107,13 +132,12 @@ export function usePosCatalog(
         description: msg,
       });
     }
-  }, [port, categoryId, q, pageSize, inStock]);
+  }, [port, categoryId, q, pageSize, inStock, rev]); // ✅ incluye rev
 
   const loadMore = React.useCallback(async () => {
     let cursorToUse: string | null = null;
     const myKey = keyRef.current;
 
-    // ✅ tomar cursor del mismo tick + evitar double fetch
     setState((s) => {
       if (s.loading) return s;
       if (!s.cursor) return s;
@@ -134,11 +158,14 @@ export function usePosCatalog(
 
       if (keyRef.current !== myKey) return;
 
+      const mapper = mapRowRef.current;
+      const mapped = mapper ? res.rows.map(mapper) : (res.rows as unknown as T[]);
+
       setState((s) => ({
         ...s,
         loading: false,
         error: null,
-        rows: mergeUniqueByVariantId(s.rows, res.rows),
+        rows: mergeUniqueByKey(s.rows, mapped, keyOfRowRef.current),
         cursor: res.nextCursor,
       }));
     } catch (e: unknown) {
@@ -154,17 +181,14 @@ export function usePosCatalog(
     }
   }, [port, categoryId, q, pageSize, inStock]);
 
-  // ✅ Auto-load cuando cambia el key
+  // ✅ IMPORTANTE: refresca cuando cambie key (incluye rev)
   React.useEffect(() => {
-    loadFirst();
-  }, [loadFirst, key]);
-
-  const rows = state.rows;
-
+    void loadFirst();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   return {
-    // raw
-    rows,
+    rows: state.rows,
     loading: state.loading,
     error: state.error,
     cursor: state.cursor,

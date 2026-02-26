@@ -2,283 +2,294 @@
 
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { EntityAvatar } from "@/components/shared/EntityAvatar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-import { notify } from "@/lib/notify/notify";
-import { isApiHttpError } from "@/lib/api/envelope";
-import { inventoryService } from "@/lib/modules/inventory/inventory.service";
+import type { WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
+import { useInventoryQuickAdjust } from "../hooks/useInventoryQuickAdjust";
 
-import type { InventoryPreviewLineDTO, WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
 import { InventoryPreviewCard } from "./components/InventoryPreviewCard";
-import { displayVariantTitle, isNonZeroIntString } from "@/lib/utils";
+import { InlineAlert } from "./components/InlineAlert";
+import { VariantHeaderCard } from "./components/VariantHeaderCard";
+import { DiscardChangesDialog } from "./components/DiscardChangesDialog";
+import { QuickAdjustForm } from "./components/QuickAdjustForm";
+import { ActionBar } from "./components/ActionBar";
+import { useDirtySnapshot } from "../hooks/useDirtySnapshot";
+import { useDialogCloseGuards } from "../hooks/useDialogCloseGuards";
 
-
-type InventoryConflictReason =
-  | "NEGATIVE_INVENTORY"
-  | "WAREHOUSE_CLOSED"
-  | "INSUFFICIENT_PERMISSION";
-
-function isInventoryConflict(e: unknown, reason: InventoryConflictReason): boolean {
-  if (!isApiHttpError(e)) return false;
-  return e.reason === reason;
-}
-
-export function InventoryQuickAdjustDialog(props: {
+type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onApplied: () => Promise<void> | void;
   row: WarehouseStockRowUI | null;
-}) {
+};
+
+// si el hook te devuelve cosas “raras” (refs), esto lo vuelve string seguro
+type MaybeRefString = string | { current: unknown } | null | undefined;
+
+function readMaybeRefString(v: MaybeRefString): string {
+  if (typeof v === "string") return v;
+  if (v && typeof v === "object" && "current" in v) {
+    const cur = (v as { current: unknown }).current;
+    return cur == null ? "" : String(cur);
+  }
+  return "";
+}
+
+export function InventoryQuickAdjustDialog(props: Props) {
   const row = props.row;
-  const vid = row?.variantId?.trim() ?? "";
+  const variantId = row?.variantId?.trim() ?? "";
 
-  const [submitting, setSubmitting] = React.useState(false);
+  const qa = useInventoryQuickAdjust({
+    open: props.open,
+    variantId,
+    defaultUnit: row?.pricingUnit ?? null,
+    unitFactor: row?.unitFactor ?? null,
+  });
 
-  const [reason, setReason] = React.useState("");
+  const qtyRef = React.useRef<HTMLInputElement | null>(null);
+  const errRef = React.useRef<HTMLDivElement | null>(null);
+  const errId = React.useId();
+
+  // -------------------------
+  // ✅ Local inputs (strings) + local errors (strings/booleans)
+  // -------------------------
+  const [qtyInput, setQtyInput] = React.useState("");
   const [notes, setNotes] = React.useState("");
-  const [delta, setDelta] = React.useState("");
+  const [reason, setReason] = React.useState("");
 
-  const [preview, setPreview] = React.useState<InventoryPreviewLineDTO[] | null>(null);
-  const [previewErr, setPreviewErr] = React.useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = React.useState(false);
-
-  // ✅ bloque por negativo
+  const [rangeMsg, setRangeMsg] = React.useState<string | null>(null);
   const [negBlocked, setNegBlocked] = React.useState(false);
 
+  // sync from qa when open / variant changes
   React.useEffect(() => {
     if (!props.open) return;
-    setReason("");
-    setNotes("");
-    setDelta("");
-    setPreview(null);
-    setPreviewErr(null);
-    setPreviewLoading(false);
-    setNegBlocked(false);
-  }, [props.open]);
 
-  // Si cambia la row mientras está abierto, limpia preview/bloqueo
-  React.useEffect(() => {
-    if (!props.open) return;
-    setPreview(null);
-    setPreviewErr(null);
-    setNegBlocked(false);
+    setQtyInput(readMaybeRefString(qa.qtyInput as unknown as MaybeRefString));
+    setNotes(readMaybeRefString(qa.notes as unknown as MaybeRefString));
+    setReason(readMaybeRefString(qa.reason as unknown as MaybeRefString));
+
+    // ✅ IMPORTANT: copiar errores a state (evita leer refs en render)
+    setRangeMsg(qa.rangeMsg ? String(qa.rangeMsg) : null);
+    setNegBlocked(Boolean(qa.negBlocked));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.open, row?.variantId]);
 
-  // ✅ si el usuario cambia delta, desbloquea para recalcular
+  // keep local errors in sync when they change (pero sin leerlos en render)
   React.useEffect(() => {
     if (!props.open) return;
-    setNegBlocked(false);
-    setPreviewErr(null);
-    setPreview(null);
-  }, [delta, props.open]);
+    setRangeMsg(qa.rangeMsg ? String(qa.rangeMsg) : null);
+    setNegBlocked(Boolean(qa.negBlocked));
+  }, [props.open, qa.rangeMsg, qa.negBlocked]);
 
-  async function runPreview(): Promise<InventoryPreviewLineDTO[] | null> {
-    setPreviewErr(null);
-    setPreview(null);
+  const isBusy = qa.submitting || qa.previewLoading;
 
-    if (!vid) return null;
-    if (!isNonZeroIntString(delta)) return null;
+  const showErrorBanner = Boolean(rangeMsg) || negBlocked;
 
-    setPreviewLoading(true);
-    try {
-      const qtyDelta = Number(delta.trim());
+  const { isDirty, reset: resetDirtySnapshot } = useDirtySnapshot({
+    open: props.open,
+    snapshotKey: row?.variantId ?? "",
+    qty: qtyInput,
+    notes,
+    reason,
+  });
 
-      const res = await inventoryService.previewAdjustment({
-        reason: reason.trim() ? reason.trim() : null,
-        lines: [{ variantId: vid, qtyDelta, ...(notes.trim() ? { notes: notes.trim() } : {}) }],
-      });
+  // autofocus al abrir
+  React.useEffect(() => {
+    if (!props.open) return;
+    const t = window.setTimeout(() => qtyRef.current?.focus(), 60);
+    return () => window.clearTimeout(t);
+  }, [props.open]);
 
-      // fallback: si backend algún día devuelve after < 0
-      const hasNegative = res.lines.some((l) => l.afterQty < 0);
-      if (hasNegative) {
-        setNegBlocked(true);
-        setPreviewErr("No se puede dejar el stock en negativo.");
-        setPreview(null);
-        notify.warning({ title: "No permitido", description: "Este ajuste dejaría stock en negativo." });
-        return null;
-      }
+  // scroll al error si aparece
+  React.useEffect(() => {
+    if (!props.open) return;
+    if (!showErrorBanner) return;
+    const t = window.setTimeout(() => {
+      errRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      qtyRef.current?.focus();
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [props.open, showErrorBanner]);
 
-      setNegBlocked(false);
-      setPreview(res.lines);
-      return res.lines;
-    } catch (e: unknown) {
-      if (isInventoryConflict(e, "NEGATIVE_INVENTORY")) {
-        setNegBlocked(true);
-        setPreview(null);
-        const msg = "No se puede dejar el stock en negativo.";
-        setPreviewErr(msg);
-        notify.warning({ title: "No permitido", description: msg });
-        return null;
-      }
+  const doClose = React.useCallback(() => props.onOpenChange(false), [props.onOpenChange]);
 
-      const msg = isApiHttpError(e) ? e.message : e instanceof Error ? e.message : "No se pudo previsualizar.";
-      setPreviewErr(msg);
-      setNegBlocked(false);
-      return null;
-    } finally {
-      setPreviewLoading(false);
-    }
-  }
+  const guards = useDialogCloseGuards({
+    open: props.open,
+    isBusy,
+    isDirty,
+    onClose: doClose,
+    onRefocus: () => window.setTimeout(() => qtyRef.current?.focus(), 0),
+  });
 
-  async function apply() {
-    if (!vid) return;
+  const onChangeQty = React.useCallback(
+    (v: string) => {
+      setQtyInput(v);
+      qa.setQtyInput(v);
+    },
+    [qa]
+  );
 
-    if (!isNonZeroIntString(delta)) {
-      notify.warning({ title: "Revisa", description: "Delta debe ser entero distinto de 0." });
+  const onChangeNotes = React.useCallback(
+    (v: string) => {
+      setNotes(v);
+      qa.setNotes(v);
+    },
+    [qa]
+  );
+
+  const onChangeReason = React.useCallback(
+    (v: string) => {
+      setReason(v);
+      qa.setReason(v);
+    },
+    [qa]
+  );
+
+  async function onApply() {
+    if (!qa.canApply) {
+      errRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      qtyRef.current?.focus();
       return;
     }
 
-    // ✅ si está bloqueado por negativo, no permitir
-    if (negBlocked) {
-      notify.warning({ title: "No permitido", description: "Este ajuste dejaría stock en negativo." });
-      return;
-    }
-
-    // ✅ exige preview válido antes de aplicar (recomendado)
-    if (!preview?.length) {
-      notify.warning({ title: "Preview requerido", description: "Haz Preview primero para validar el ajuste." });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const qtyDelta = Number(delta.trim());
-
-      await inventoryService.adjust({
-        reason: reason.trim() ? reason.trim() : null,
-        lines: [{ variantId: vid, qtyDelta, ...(notes.trim() ? { notes: notes.trim() } : {}) }],
-      });
-
-      notify.success({ title: "Inventario actualizado", description: "Ajuste aplicado." });
+    await qa.apply(async () => {
       await props.onApplied();
-      props.onOpenChange(false);
-    } catch (e: unknown) {
-      if (isInventoryConflict(e, "NEGATIVE_INVENTORY")) {
-        const msg = "No se puede dejar el stock en negativo.";
-        setNegBlocked(true);
-        setPreview(null);
-        setPreviewErr(msg);
-        notify.warning({ title: "No permitido", description: msg });
-        return;
-      }
-
-      const msg = isApiHttpError(e) ? e.message : e instanceof Error ? e.message : "No se pudo aplicar.";
-      notify.error({ title: "Error", description: msg });
-    } finally {
-      setSubmitting(false);
-    }
+      resetDirtySnapshot();
+      doClose();
+    });
   }
 
-  const titleText = row ? displayVariantTitle(row.title, row.sku) : "—";
+  const applyDisabled = !row || !qa.canApply || isBusy;
+  const previewDisabled = !row || !qa.canPreview || isBusy;
 
-  // ✅ deshabilitar Apply cuando:
-  // - no hay row/vid
-  // - delta inválido
-  // - loading/submitting
-  // - hay bloqueo por negativo
-  // - no hay preview válido
-  const canApply =
-    !!row &&
-    !!vid &&
-    isNonZeroIntString(delta) &&
-    !submitting &&
-    !previewLoading &&
-    !negBlocked &&
-    !!preview?.length;
+  const applyTooltipText = React.useMemo(() => {
+    if (!row) return "Selecciona una variante.";
+    if (qa.submitting) return "Aplicando…";
+    if (qa.previewLoading) return "Espera a que termine el preview.";
+    if (rangeMsg) return rangeMsg;
+    if (negBlocked) return "No se puede dejar el stock en negativo. Ajusta la cantidad.";
+    if (!qa.canApply) return "Haz preview y corrige los campos antes de aplicar.";
+    return "";
+  }, [row, qa.submitting, qa.previewLoading, rangeMsg, negBlocked, qa.canApply]);
+
+  const previewTooltipText = React.useMemo(() => {
+    if (!row) return "Selecciona una variante.";
+    if (qa.submitting) return "Espera a que termine la operación.";
+    if (!qa.canPreview) return "Introduce una cantidad válida para previsualizar.";
+    return "";
+  }, [row, qa.submitting, qa.canPreview]);
+
+  const maxAbsText = React.useMemo(() => {
+    if (!row) return null;
+    if (qa.maxAbsQty == null) return null;
+    return `Máximo permitido: ±${new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(qa.maxAbsQty)} ${row.pricingUnit
+      }`;
+  }, [row, qa.maxAbsQty]);
+
+  const qtyInputClass =
+    (showErrorBanner ? "border-amber-400 ring-2 ring-amber-300 focus-visible:ring-2 focus-visible:ring-amber-300" : "") +
+    "";
+
+  const onQtyKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      void onApply();
+      return;
+    }
+
+    e.preventDefault();
+    void qa.runPreview();
+  };
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Ajuste de inventario</DialogTitle>
-        </DialogHeader>
+    <TooltipProvider>
+      <DiscardChangesDialog
+        open={guards.confirmOpen}
+        onOpenChange={guards.setConfirmOpenSafe}
+        onKeepEditing={guards.onConfirmKeepEditing}
+        onDiscard={guards.onConfirmDiscard}
+      />
 
-        {!row ? (
-          <div className="text-sm text-muted-foreground">Selecciona una variante en la tabla.</div>
-        ) : (
-          <>
-            <div className="rounded-xl border border-border p-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <EntityAvatar src={row.imageUrl ?? undefined} alt={titleText} size={44} />
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{titleText}</div>
-                  <div className="text-xs text-muted-foreground truncate">SKU: {row.sku}</div>
-                  {row.productName ? <div className="text-xs text-muted-foreground truncate">{row.productName}</div> : null}
+      <Dialog open={props.open} onOpenChange={guards.onDialogOpenChange}>
+        <DialogContent
+          className="sm:max-w-2xl rounded-2xl"
+          onEscapeKeyDown={guards.onEscapeKeyDown}
+          onPointerDownOutside={guards.onPointerDownOutside}
+          onInteractOutside={guards.onInteractOutside}
+        >
+          <DialogHeader>
+            <DialogTitle>Ajuste de inventario</DialogTitle>
+          </DialogHeader>
+
+          {!row ? (
+            <div className="text-sm text-muted-foreground">Selecciona una variante en la tabla.</div>
+          ) : (
+            <>
+              <VariantHeaderCard row={row} />
+
+              {showErrorBanner ? (
+                <div ref={errRef} className="mt-3">
+                  <InlineAlert id={errId}>
+                    {rangeMsg ? (
+                      <>
+                        <span className="font-semibold">Cantidad fuera de rango.</span>{" "}
+                        <span className="opacity-90">{rangeMsg}</span>
+                      </>
+                    ) : negBlocked ? (
+                      <>
+                        <span className="font-semibold">Stock en negativo bloqueado.</span>{" "}
+                        <span className="opacity-90">Ajusta la cantidad.</span>
+                      </>
+                    ) : null}
+                  </InlineAlert>
                 </div>
-              </div>
-
-              <div className="text-right">
-                <div className="text-xs text-muted-foreground">Stock actual</div>
-                <div className="text-lg font-semibold tabular-nums">{row.qty}</div>
-              </div>
-            </div>
-
-            <div className="grid gap-3">
-              <div className="grid gap-1">
-                <div className="text-sm font-medium">Delta</div>
-                <Input
-                  inputMode="numeric"
-                  value={delta}
-                  disabled={submitting}
-                  onChange={(e) => setDelta(e.target.value)}
-                  placeholder="+10 / -2"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void runPreview();
-                    }
-                  }}
-                />
-              </div>
-
-              <div className="grid gap-1">
-                <div className="text-sm font-medium">Notas (opcional)</div>
-                <Input value={notes} disabled={submitting} onChange={(e) => setNotes(e.target.value)} placeholder="recount / shrink / damage…" />
-              </div>
-
-              <div className="grid gap-1">
-                <div className="text-sm font-medium">Razón (opcional)</div>
-                <Input value={reason} disabled={submitting} onChange={(e) => setReason(e.target.value)} placeholder="Stock recount…" />
-              </div>
-
-              {/* ✅ mensaje visible (además del notify) */}
-              {negBlocked ? (
-                <div className="text-sm text-destructive">No se puede dejar el stock en negativo. Ajusta el delta.</div>
               ) : null}
 
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={submitting || previewLoading || !isNonZeroIntString(delta)}
-                  onClick={() => void runPreview()}
-                >
-                  {previewLoading ? "Calculando..." : "Preview"}
-                </Button>
-                <div className="text-xs text-muted-foreground">Confirma “after” antes de aplicar.</div>
-              </div>
-
-              <InventoryPreviewCard
-                lines={preview}
-                loading={previewLoading}
-                error={previewErr}
-                title={`${titleText} · SKU: ${row.sku}`}
+              <QuickAdjustForm
+                ref={qtyRef}
+                row={row}
+                qtyInput={qtyInput}
+                notes={notes}
+                reason={reason}
+                setQtyInput={onChangeQty}
+                setNotes={onChangeNotes}
+                setReason={onChangeReason}
+                isBusy={isBusy}
+                maxAbsText={maxAbsText}
+                qtyInputClass={qtyInputClass}
+                showErrorBanner={showErrorBanner}
+                errId={errId}
+                onQtyKeyDown={onQtyKeyDown}
+                negBlocked={negBlocked}
               />
 
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="secondary" onClick={() => props.onOpenChange(false)} disabled={submitting || previewLoading}>
-                  Cancelar
-                </Button>
-                <Button onClick={() => void apply()} disabled={!canApply}>
-                  Aplicar
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+              <InventoryPreviewCard
+                title={`${row.title} · SKU: ${row.sku}`}
+                lines={qa.preview}
+                loading={qa.previewLoading}
+                error={qa.previewErr}
+                pricingUnit={row.pricingUnit}
+                unitFactor={row.unitFactor}
+              />
+
+              <ActionBar
+                onCancel={guards.requestClose}
+                cancelDisabled={isBusy}
+                onPreview={() => void qa.runPreview()}
+                previewDisabled={previewDisabled}
+                previewLoading={qa.previewLoading}
+                previewTooltip={previewTooltipText}
+                onApply={() => void onApply()}
+                applyDisabled={applyDisabled}
+                applyLoading={qa.submitting}
+                applyTooltip={applyTooltipText}
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 }

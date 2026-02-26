@@ -1,9 +1,9 @@
 // src/modules/purchases/ui/detail/PurchaseItemsCard.tsx
 "use client";
 
+import * as React from "react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import * as React from "react";
 
 import type { DraftLine, PurchaseDetailVm } from "../../hooks/purchaseDetail.types";
 import { PurchaseItemDialog } from "./PurchaseItemDialog";
@@ -17,38 +17,59 @@ type Pending =
   | { mode: "add"; seed: DraftLine; picked: VariantPick | null }
   | { mode: "edit"; idx: number; seed: DraftLine; picked: VariantPick | null };
 
+function parseQtyInput(raw: unknown): number | null {
+  const s = String(raw ?? "").trim().replace(",", ".");
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatQtyInput(n: number): string {
+  // evita "1.0000000002"
+  const rounded = Math.round(n * 1000) / 1000;
+  return String(rounded);
+}
+
 export function PurchaseItemsCard({ vm }: { vm: PurchaseDetailVm }) {
   const canEdit = vm.editor.canEditItems;
   const disabled = vm.loading || !canEdit;
 
   const inv = useMyWarehouseVariantIndex({ maxItems: 800, pageSize: 150 });
+  const { ensureLoaded, byId } = inv;
 
   const [pending, setPending] = React.useState<Pending | null>(null);
   const [removeIdx, setRemoveIdx] = React.useState<number | null>(null);
 
-  // ✅ Cargar inventario automáticamente para que la lista tenga meta humano
   React.useEffect(() => {
     if (!canEdit) return;
-    // si hay líneas o quieres siempre: carga
     if (vm.editor.lines.length === 0) return;
-    void inv.ensureLoaded();
-  }, [canEdit, vm.editor.lines.length, inv]);
+    void ensureLoaded();
+  }, [canEdit, vm.editor.lines.length, ensureLoaded]);
 
-  // ✅ helper: VariantPick -> DraftLine["variant"]
-  function pickToLineVariant(v: VariantPick): DraftLine["variant"] {
-    return {
-      id: v.id,
-      sku: v.sku ?? "—",
-      barcode: v.barcode ?? null,
-      title: v.title ?? v.label ?? null,
-      imageUrl: v.imageUrl ?? null,
-      isActive: v.isActive ?? true,
-      productName: v.productName ?? null,
+  const pickToLineVariant = React.useCallback((v: VariantPick): DraftLine["variant"] => {
+  return {
+    id: v.id,
+    sku: v.sku ?? "—",
+    barcode: v.barcode ?? null,
+    title: v.title ?? v.label ?? null,
+    imageUrl: v.imageUrl ?? null,
+    isActive: v.isActive ?? true,
+    productName: v.productName ?? null,
+
+    units: {
+      baseUnit: v.baseUnit,
+      pricingUnit: v.pricingUnit,
+      unitFactor: v.unitFactor,
+    },
+
+    money: {
       costBaseMinor: v.costBaseMinor,
       priceBaseMinor: v.priceBaseMinor,
-      unit: v.unit
-    };
-  }
+    },
+
+    unit: v.pricingUnit,
+  };
+}, []);
 
 
   const handlePick = React.useCallback(
@@ -57,21 +78,29 @@ export function PurchaseItemsCard({ vm }: { vm: PurchaseDetailVm }) {
       const meta = pickToLineVariant(v);
 
       const idx = vm.editor.lines.findIndex(
-        (x) => (normalizeId(x.productVariantId) || x.productVariantId) === id
+        (x) => (normalizeId(x.productVariantId) || x.productVariantId) === id,
       );
 
       if (idx >= 0) {
         const cur = vm.editor.lines[idx]!;
+        const curQty = parseQtyInput(cur.qtyInput);
+        const nextQtyInput = curQty == null ? cur.qtyInput : formatQtyInput(curQty + 1);
+
         setPending({
           mode: "edit",
           idx,
-          // ✅ mantenemos variant existente; si no hay, usamos el pick
           seed: {
             ...cur,
             variant: cur.variant ?? meta,
-            unitCostBaseMinor: cur.unitCostBaseMinor ?? Math.max(0, v.costBaseMinor ?? 0),
+            unitCostBaseMinor: Number(cur.unitCostBaseMinor ?? 0) || Math.max(0, v.costBaseMinor ?? 0),
             unitPriceBaseMinor: cur.unitPriceBaseMinor ?? ((v.priceBaseMinor ?? 0) || null),
-            quantity: Number(cur.quantity ?? 0) + 1,
+
+            // ✅ nuevo contrato
+            qtyInput: nextQtyInput,
+            // mantenemos unitInput existente si ya está; si no, usa pricingUnit
+            unitInput: cur.unitInput ?? v.pricingUnit,
+            // qtyBaseMinor se recalcula en dialog (usePurchaseItemForm) al guardar
+            qtyBaseMinor: Number(cur.qtyBaseMinor ?? 0),
           },
           picked: v,
         });
@@ -82,25 +111,28 @@ export function PurchaseItemsCard({ vm }: { vm: PurchaseDetailVm }) {
         mode: "add",
         seed: {
           productVariantId: id,
-          quantity: 1,
-          unitCostBaseMinor: Math.max(0, v.costBaseMinor ?? 0),   // ✅ costo sugerido
-          unitPriceBaseMinor: (v.priceBaseMinor ?? 0) || null,    // ✅ precio sugerido opcional
+
+          // ✅ nuevo contrato (inicial)
+          qtyInput: "1",
+          unitInput: v.pricingUnit,
+          qtyBaseMinor: 0,
+
+          unitCostBaseMinor: Math.max(0, v.costBaseMinor ?? 0),
+          unitPriceBaseMinor: (v.priceBaseMinor ?? 0) || null,
           variant: meta,
         },
         picked: v,
       });
     },
-    [vm.editor.lines]
+    [pickToLineVariant, vm.editor.lines],
   );
-
-
 
   return (
     <Card className="rounded-2xl">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <CardTitle className="">Productos</CardTitle>
+            <CardTitle>Productos</CardTitle>
             <div className="text-sm text-muted-foreground">
               {canEdit ? "Busca y selecciona una variante" : "Solo lectura"} · {vm.editor.lines.length} item(s)
               {canEdit ? (vm.editor.dirty ? " · Cambios sin guardar" : " · Sin cambios") : null}
@@ -131,14 +163,13 @@ export function PurchaseItemsCard({ vm }: { vm: PurchaseDetailVm }) {
             if (!cur) return;
 
             const id = normalizeId(cur.productVariantId) || cur.productVariantId;
-            const picked = inv.byId.get(id) ?? null;
+            const picked = byId.get(id) ?? null;
 
             setPending({
               mode: "edit",
               idx,
               seed: {
                 ...cur,
-                // ✅ si la línea no tiene meta, la reconstruimos del índice
                 variant: cur.variant ?? (picked ? pickToLineVariant(picked) : null),
               },
               picked,
@@ -147,16 +178,13 @@ export function PurchaseItemsCard({ vm }: { vm: PurchaseDetailVm }) {
           onRemove={(idx) => setRemoveIdx(idx)}
         />
 
-
-
-
         <PurchaseItemDialog
           open={pending != null}
           onOpenChange={(v) => !v && setPending(null)}
           busy={vm.loading}
           title={pending?.mode === "add" ? "Agregar producto" : "Editar producto"}
           line={pending?.seed ?? null}
-          picked={pending?.picked ?? null} // ✅ pasamos VariantPick real
+          picked={pending?.picked ?? null}
           onSave={(patch) => {
             if (!pending) return;
 

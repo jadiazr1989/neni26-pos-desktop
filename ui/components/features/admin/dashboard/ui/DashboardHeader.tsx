@@ -1,69 +1,99 @@
-import { Button } from "@/components/ui";
-import { cn } from "@/lib";
-import { AdminDashboardRange } from "@/lib/modules/admin/dashboard/admin-dashboard.dto";
-import { BarChart3, RefreshCw } from "lucide-react";
+// src/modules/admin/dashboard/ui/DashboardHeader.tsx
+"use client";
+
 import * as React from "react";
+import { RefreshCw, BarChart3, PackageSearch } from "lucide-react";
 
-type RangeBtn = { key: AdminDashboardRange; label: string };
+import type { AdminDashboardRange } from "@/lib/modules/admin/dashboard/admin-dashboard.dto";
 
-const RANGE_BTNS: RangeBtn[] = [
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+const RANGE_OPTIONS: Array<{ key: AdminDashboardRange; label: string }> = [
   { key: "today", label: "Hoy" },
-  { key: "7d", label: "7d" },
-  { key: "30d", label: "30d" },
+  { key: "7d", label: "7 días" },
+  { key: "30d", label: "30 días" },
 ];
 
 export function DashboardHeader(props: {
   range: AdminDashboardRange;
-  onRangeChange: (r: AdminDashboardRange) => void;
-  onRefresh: () => void;
+  onRangeChange: (next: AdminDashboardRange) => void;
+
   loading: boolean;
+  onRefresh: () => void;
+
   onReports: () => void;
   onGoProducts: () => void;
-  component?: React.ReactNode;
+
+  component?: React.ReactNode; // slot para scope badges u otros
 }) {
+  const onTabChange = React.useCallback(
+    (v: string) => {
+      // Tabs solo emite strings, pero nuestros values vienen del union
+      const next = v as AdminDashboardRange;
+      props.onRangeChange(next);
+    },
+    [props]
+  );
+
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="space-y-1">
-        <h1 className="flex items-center gap-2 text-xl font-semibold">
-          <span>Dashboard</span>
-          {props.component}
-        </h1>
+    <Card className="rounded-2xl border-border/60">
+      <div className="p-4 space-y-3">
+        {/* Top row */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-lg font-semibold tracking-tight">Panel de control administrativo</div>
+            <div className="text-xs text-muted-foreground">
+              Ventas · Caja · Operación · Inventario
+            </div>
+          </div>
 
-        <p className="text-sm text-muted-foreground">
-          Detecta problemas y actúa rápido.
-        </p>
-      </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {props.component ? <div className="mr-1">{props.component}</div> : null}
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <div className="inline-flex rounded-xl border border-border p-1">
-          {RANGE_BTNS.map((b) => (
-            <button
-              key={b.key}
-              onClick={() => props.onRangeChange(b.key)}
-              className={cn(
-                "px-3 py-1.5 text-sm rounded-lg transition-colors",
-                props.range === b.key
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent/40"
-              )}
+            <Button variant="outline" size="sm" onClick={props.onGoProducts} className="gap-2">
+              <PackageSearch className="size-4" />
+              Productos
+            </Button>
+
+            <Button variant="outline" size="sm" onClick={props.onReports} className="gap-2">
+              <BarChart3 className="size-4" />
+              Reportes
+            </Button>
+
+            <Button
+              variant="default"
+              size="sm"
+              onClick={props.onRefresh}
+              disabled={props.loading}
+              className={cn("gap-2", props.loading ? "opacity-90" : "")}
             >
-              {b.label}
-            </button>
-          ))}
+              <RefreshCw className={cn("size-4", props.loading ? "animate-spin" : "")} />
+              {props.loading ? "Actualizando" : "Actualizar"}
+            </Button>
+          </div>
         </div>
 
-        <Button variant="secondary" onClick={props.onRefresh} disabled={props.loading}>
-          <RefreshCw
-            className={cn("mr-2 size-4", props.loading && "animate-spin")}
-          />
-          Refrescar
-        </Button>
+        {/* Range selector */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <Tabs value={props.range} onValueChange={onTabChange}>
+            <TabsList className="h-9">
+              {RANGE_OPTIONS.map((r) => (
+                <TabsTrigger key={r.key} value={r.key} className="text-xs">
+                  {r.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
-        <Button variant="secondary" onClick={props.onReports}>
-          <BarChart3 className="mr-2 size-4" />
-          Reportes
-        </Button>
+          <div className="text-[11px] text-muted-foreground">
+            Tip: cambia el rango para recalcular KPIs, tendencia y rankings.
+          </div>
+        </div>
       </div>
-    </div>
+    </Card>
   );
 }
+

@@ -5,6 +5,7 @@ import type {
   CashSessionAdminDetailDTO,
   CashSessionsListDTO,
   ListCashSessionsQuery,
+  ReportsAlertsDTO,
   ReportsDailyRowDTO,
   ReportsOverviewDTO,
 } from "./reports.dto";
@@ -29,6 +30,10 @@ class AdminReportsService {
   async overview(params: { from: string; to: string }): Promise<ReportsOverviewDTO> {
     const res = await this.port.overview({ from: params.from, to: params.to });
     return res.overview;
+  }
+
+  async alerts(params: { from: string; to: string }): Promise<ReportsAlertsDTO> {
+    return this.port.alerts({ from: params.from, to: params.to });
   }
 }
 

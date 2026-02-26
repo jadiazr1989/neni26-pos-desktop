@@ -1,3 +1,4 @@
+// src/modules/inventory/ui/hooks/useInventoryAdjustForm.ts
 "use client";
 
 import * as React from "react";

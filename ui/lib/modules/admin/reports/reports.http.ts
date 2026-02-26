@@ -8,6 +8,8 @@ import type {
   AdminOverviewQuery,
   AdminOverviewResponse,
   ListCashSessionsQuery,
+  AdminAlertsQuery,
+  AdminAlertsResponse,
 } from "./reports.dto";
 
 type QueryValue = string | number | boolean | null | undefined;
@@ -38,6 +40,10 @@ export class AdminReportsHttpAdapter implements AdminReportsPort {
 
   overview(q: AdminOverviewQuery): Promise<AdminOverviewResponse> {
     return apiClient.json(`/api/v1/admin/reports/summary/overview${toQuery(q)}`, { method: "GET" });
+  }
+
+  alerts(q: AdminAlertsQuery): Promise<AdminAlertsResponse> {
+    return apiClient.json<AdminAlertsResponse>(`/api/v1/admin/reports/summary/alerts?from=${encodeURIComponent(q.from)}&to=${encodeURIComponent(q.to)}`);
   }
 }
 

@@ -1,8 +1,8 @@
 import type { LineItem } from "../types";
 
 export function calcLineTotal(li: LineItem): number {
-  const deltas = li.optionsSnapshot.reduce((a, o) => a + o.priceDelta, 0);
-  return li.qty * (li.pricePerUnitSnapshot + deltas);
+  const deltas = li.optionsSnapshot.reduce((a, o) => a + o.priceDeltaMinor, 0);
+  return li.qty * (li.pricePerUnitSnapshotMinor + deltas);
 }
 
 export function calcSubtotal(items: LineItem[]): number {

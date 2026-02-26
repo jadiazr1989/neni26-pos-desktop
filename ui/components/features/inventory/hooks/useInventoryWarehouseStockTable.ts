@@ -1,8 +1,9 @@
+// src/modules/inventory/ui/hooks/useInventoryWarehouseStockTable.ts
 "use client";
 
 import * as React from "react";
 import { inventoryService } from "@/lib/modules/inventory/inventory.service";
-import type { WarehouseStockRowDTO, WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
+import type { WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
 
 type State = {
   rows: WarehouseStockRowUI[];
@@ -10,18 +11,6 @@ type State = {
   error: string | null;
   nextCursor: string | null;
 };
-
-function mapRow(dto: WarehouseStockRowDTO): WarehouseStockRowUI {
-  return {
-    variantId: dto.variantId, // ✅ click/adjust
-    sku: dto.variant?.sku ?? "—",
-    title: dto.variant?.title ?? null,
-    qty: Number(dto.quantity ?? 0),
-    isActive: dto.variant?.isActive ?? true,
-    imageUrl: dto.variant?.imageUrl ?? null,
-    productName: dto.variant?.product?.name ?? null,
-  };
-}
 
 function mergeUnique(prev: WarehouseStockRowUI[], next: WarehouseStockRowUI[]): WarehouseStockRowUI[] {
   const m = new Map<string, WarehouseStockRowUI>();
@@ -45,26 +34,9 @@ export function useInventoryWarehouseStockTable(params: { pageSize?: number }) {
 
     try {
       const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor: null });
-      const uiRows = (res.rows as WarehouseStockRowDTO[]).map(mapRow);
-
-      // ✅ si backend devolvió rows pero no pudimos mapear ids (defensivo)
-      if (!uiRows.length && (res.rows as unknown[]).length) {
-        setState({
-          rows: [],
-          loading: false,
-          error: "La API no está devolviendo variantId en warehouse stock.",
-          nextCursor: res.nextCursor,
-        });
-        return;
-      }
-
-      setState({ rows: uiRows, loading: false, error: null, nextCursor: res.nextCursor });
+      setState({ rows: res.rows, loading: false, error: null, nextCursor: res.nextCursor });
     } catch (e: unknown) {
-      setState((s) => ({
-        ...s,
-        loading: false,
-        error: e instanceof Error ? e.message : "No se pudo cargar inventario.",
-      }));
+      setState((s) => ({ ...s, loading: false, error: e instanceof Error ? e.message : "No se pudo cargar inventario." }));
     }
   }, [pageSize]);
 
@@ -81,23 +53,16 @@ export function useInventoryWarehouseStockTable(params: { pageSize?: number }) {
     if (!cursorToUse) return;
 
     try {
-      // ✅ aquí estaba el bug: estabas mandando cursor: null
       const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor: cursorToUse });
-      const uiRows = (res.rows as WarehouseStockRowDTO[]).map(mapRow);
-
       setState((s) => ({
         ...s,
         loading: false,
         error: null,
-        rows: mergeUnique(s.rows, uiRows),
+        rows: mergeUnique(s.rows, res.rows),
         nextCursor: res.nextCursor,
       }));
     } catch (e: unknown) {
-      setState((s) => ({
-        ...s,
-        loading: false,
-        error: e instanceof Error ? e.message : "No se pudo cargar más.",
-      }));
+      setState((s) => ({ ...s, loading: false, error: e instanceof Error ? e.message : "No se pudo cargar más." }));
     }
   }, [pageSize]);
 

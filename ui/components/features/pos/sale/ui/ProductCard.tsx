@@ -13,9 +13,16 @@ export function ProductCard(props: {
 }): JSX.Element {
   const p = props.product;
 
-  const onClick = (): void => props.onPick(p);
+  const disabled = (p.availableQty ?? 0) <= 0;
+
+  const onClick = (): void => {
+    if (disabled) return;
+    props.onPick(p);
+  };
 
   const onKeyDown: KeyboardEventHandler<HTMLButtonElement> = (e) => {
+    if (disabled) return;
+
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       onClick();
@@ -27,17 +34,17 @@ export function ProductCard(props: {
       type="button"
       onClick={onClick}
       onKeyDown={onKeyDown}
+      disabled={disabled}
+      aria-disabled={disabled}
       className={cn(
         "group relative text-left transition",
         "rounded-xl border border-border bg-card shadow-sm",
-        "hover:bg-accent/10",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300"
+        disabled
+          ? "opacity-40 grayscale cursor-not-allowed"
+          : "hover:bg-accent/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300"
       )}
     >
-      <ProductMeta
-        product={p}
-        rightSlot={<FavoriteToggle productId={p.id} />}
-      />
+      <ProductMeta product={p} rightSlot={<FavoriteToggle productId={p.id} />} />
     </button>
   );
 }

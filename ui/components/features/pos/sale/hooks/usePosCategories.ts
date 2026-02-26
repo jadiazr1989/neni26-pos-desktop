@@ -1,3 +1,4 @@
+// hooks/usePosCategories.ts
 "use client";
 
 import * as React from "react";
@@ -19,9 +20,10 @@ function mergeUniqueById(prev: PosCategoryDTO[], next: PosCategoryDTO[]): PosCat
   return Array.from(m.values());
 }
 
-export function usePosCategories(params?: { pageSize?: number; inStock?: boolean }) {
+export function usePosCategories(params?: { pageSize?: number; inStock?: boolean; rev?: number }) {
   const pageSize = params?.pageSize ?? 8;
   const inStock = params?.inStock ?? true;
+  const rev = Math.max(0, Number(params?.rev ?? 0)); // ✅
 
   const [state, setState] = React.useState<State>({
     rows: [],
@@ -55,12 +57,11 @@ export function usePosCategories(params?: { pageSize?: number; inStock?: boolean
         description: msg,
       });
     }
-  }, [inStock, pageSize]);
+  }, [inStock, pageSize, rev]); // ✅ incluye rev
 
   const loadMore = React.useCallback(async () => {
     let cursorToUse: string | null = null;
 
-    // ✅ toma cursor del state en el mismo tick (evita race/stale)
     setState((s) => {
       if (s.loading) return s;
       if (!s.cursor) return s;
@@ -94,6 +95,11 @@ export function usePosCategories(params?: { pageSize?: number; inStock?: boolean
       });
     }
   }, [inStock, pageSize]);
+
+  // ✅ refresca cuando cambie rev/inStock/pageSize (por loadFirst deps)
+  React.useEffect(() => {
+    void loadFirst();
+  }, [loadFirst]);
 
   return {
     rows: state.rows,

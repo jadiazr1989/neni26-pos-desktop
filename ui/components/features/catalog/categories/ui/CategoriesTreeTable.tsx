@@ -14,52 +14,52 @@ export function CategoriesTreeTable(props: {
   hasMore: boolean;
   loadMore: () => void;
 
-  onOpen: (c: CategoryDTO) => void;     // navegar a hijos
+  onOpen: (c: CategoryDTO) => void; // navegar a hijos
   onEdit: (c: CategoryDTO) => void;
   onDelete: (id: string, name: string) => Promise<void>;
 
   height?: number;
 }) {
-  const columns = React.useMemo<Array<VirtualColumnDef<CategoryDTO>>>(() => {
-    return [
-      {
-        key: "img",
-        header: "Img",
-        className: "col-span-1",
-        render: (c) => <EntityAvatar src={c.imageUrl} alt={c.name} size={36} />,
-      },
-      {
-        key: "name",
-        header: "Nombre",
-        className: "col-span-4",
-        render: (c) => (
-          <button
-            onClick={() => props.onOpen(c)}
-            className="w-full flex items-center gap-2 text-left"
-            title="Abrir subcategorías"
-          >
-            <span className="font-medium truncate">{c.name}</span>
-            <ChevronRight className="size-4 text-muted-foreground shrink-0" />
-          </button>
-        ),
-      },
-      {
-        key: "slug",
-        header: "Slug",
-        className: "col-span-3 text-sm text-muted-foreground truncate",
-        render: (c) => c.slug,
-      },
-      {
-        key: "path",
-        header: "Ruta (slugPath)",
-        className: "col-span-3 text-xs text-muted-foreground truncate",
-        render: (c) => c.slugPath ?? "—",
-      },
-      {
-        key: "actions",
-        header: <span className="w-full text-right block">Acc.</span>,
-        className: "col-span-1",
-        render: (c) => (
+  const columns: Array<VirtualColumnDef<CategoryDTO>> = [
+    {
+      key: "img",
+      header: "Img",
+      className: "col-span-1",
+      render: (c) => <EntityAvatar src={c.imageUrl} alt={c.name} size={36} />,
+    },
+    {
+      key: "name",
+      header: "Nombre",
+      className: "col-span-4 min-w-0",
+      render: (c) => (
+        <div className="min-w-0 flex items-center gap-2">
+          <span className="font-medium truncate">{c.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: "slug",
+      header: "Slug",
+      className: "col-span-3 text-sm text-muted-foreground truncate",
+      render: (c) => c.slug,
+    },
+    {
+      key: "path",
+      header: "Ruta (slugPath)",
+      className: "col-span-3 text-xs text-muted-foreground truncate",
+      render: (c) => c.slugPath ?? "—",
+    },
+    {
+      key: "actions",
+      header: <span className="w-full text-right block">Acc.</span>,
+      className: "col-span-1",
+      render: (c) => (
+        <div
+          className="flex justify-end"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <RowActions
             onEdit={() => props.onEdit(c)}
             onDelete={() => props.onDelete(c.id, c.name)}
@@ -72,10 +72,10 @@ export function CategoriesTreeTable(props: {
             }}
             disabled={props.loading}
           />
-        ),
-      },
-    ];
-  }, [props]);
+        </div>
+      ),
+    },
+  ];
 
   return (
     <VirtualDataTable<CategoryDTO>
@@ -89,6 +89,8 @@ export function CategoriesTreeTable(props: {
       hasMore={props.hasMore}
       onEndReached={props.loadMore}
       empty={<span className="text-sm text-muted-foreground">Sin categorías en este nivel.</span>}
+      onRowClick={(c) => props.onOpen(c)}
+      getRowClassName={() => "cursor-pointer"}
     />
   );
 }

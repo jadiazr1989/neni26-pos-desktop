@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import type { ProductDTO, VariantUnit } from "@/lib/modules/catalog/products/product.dto";
+import type { ProductDTO } from "@/lib/modules/catalog/products/product.dto";
 import { productService } from "@/lib/modules/catalog/products/product.service";
-import { submitProduct, type ProductServicePort } from "@/lib/modules/catalog/products/product.submit";
+import { submitProduct } from "@/lib/modules/catalog/products/product.submit";
+import type { ProductPort } from "@/lib/modules/catalog/products/product.port";
+
 import { useBrandOptions } from "../hooks/useBrandOptions";
 import { useCategoryOptions } from "../hooks/useCategoryOptions";
 import { useProductForm } from "../hooks/useProductForm";
@@ -16,7 +18,9 @@ export function ProductDialog(props: {
   onOpenChange: (v: boolean) => void;
   initial?: ProductDTO | null;
   onSaved: (productId: string) => Promise<void> | void;
-  service?: ProductServicePort;
+
+  // ✅ si quieres inyectar mock en tests, usa ProductPort (no ProductServicePort)
+  service?: Pick<ProductPort, "create" | "update">;
 }) {
   const mode = props.initial ? "edit" : "create";
   const service = props.service ?? productService;
@@ -30,6 +34,7 @@ export function ProductDialog(props: {
 
   async function onSubmit() {
     form.setError(null);
+    if (submitting) return;
 
     const v = form.validate();
     if (!v.ok) {
@@ -56,14 +61,11 @@ export function ProductDialog(props: {
       props.onOpenChange(false);
     } catch (e: unknown) {
       if (isApiHttpError(e)) {
-        // 409 = conflicto de negocio (friendly warning)
         if (e.status === 409) {
           notify.warning({ title: "No se pudo guardar", description: e.message });
           form.setError(e.message);
           return;
         }
-
-        // resto = error real
         notify.error({ title: "Error guardando producto", description: e.message });
         form.setError(e.message);
         return;
@@ -90,13 +92,11 @@ export function ProductDialog(props: {
       description={form.state.description}
       brandId={form.state.brandId}
       categoryId={form.state.categoryId}
-      baseUnit={form.state.baseUnit}
       onNameChange={(x) => form.patch({ name: x })}
       onBarcodeChange={(x) => form.patch({ barcode: x })}
       onDescriptionChange={(x) => form.patch({ description: x })}
       onBrandChange={(x) => form.patch({ brandId: x })}
       onCategoryChange={(x) => form.patch({ categoryId: x })}
-      onBaseUnitChange={(u: VariantUnit) => form.patch({ baseUnit: u })}
       onSubmit={() => void onSubmit()}
       brandOptions={{
         loadState: brands.loadState,

@@ -1,67 +1,81 @@
+// src/modules/purchases/hooks/purchaseDetail.types.ts
 import type { PurchaseStatus, PurchaseWithItemsDTO } from "@/lib/modules/purchases/purchase.dto";
-import { VariantMeta } from "./purchaseItemDialog.types";
+import type { VariantMeta } from "./purchaseItemDialog.types";
+import type { SellUnit } from "@/lib/modules/catalog/products/product.dto";
+import type { MoneyStr } from "@/lib/money/moneyStr";
 
 export type DraftLine = {
-    productVariantId: string;
-    quantity: number;
-    unitCostBaseMinor: number;
-    unitPriceBaseMinor: number | null;
+  productVariantId: string;
 
-    variant?: VariantMeta | null;
+  // ✅ NEW contract (input)
+  qtyInput: string;
+  unitInput: SellUnit;
+  qtyBaseMinor: number;
+
+  // ✅ display from backend (optional)
+  qtyDisplay?: string | null;
+  displayUnit?: SellUnit | null;
+
+  unitCostBaseMinor: number;
+  unitPriceBaseMinor: number | null;
+
+  // ✅ total from backend (optional, BigInt string)
+  lineTotalBaseMinor?: MoneyStr | null;
+
+  variant: VariantMeta | null;
 };
 
 export type PurchaseFlags = {
-    status: PurchaseStatus;
-    itemsCount: number;
-    canSaveItems: boolean; // DRAFT + dirty
-    canOrder: boolean;     // DRAFT + itemsCount>0 + !dirty
-    canReceive: boolean;   // ORDERED + itemsCount>0 + !dirty
-    canCancel: boolean;    // != RECEIVED
-    showEmptyItemsWarning: boolean; // DRAFT/ORDERED + itemsCount===0
+  status: PurchaseStatus;
+  itemsCount: number;
+  canSaveItems: boolean;
+  canOrder: boolean;
+  canReceive: boolean;
+  canCancel: boolean;
+  showEmptyItemsWarning: boolean;
 };
 
 export type PurchaseItemsEditorVm = {
-    canEditItems: boolean;
-    dirty: boolean;
-    lines: DraftLine[];
+  canEditItems: boolean;
+  dirty: boolean;
+  lines: DraftLine[];
 
-    syncFromPurchase: (p: PurchaseWithItemsDTO) => void;
+  syncFromPurchase: (p: PurchaseWithItemsDTO) => void;
 
-    // POS helpers
-    upsertByVariantId: (variantId: string) => void;
-    openAdd: (seed?: Partial<DraftLine>) => void;
+  upsertByVariantId: (variantId: string) => void;
+  openAdd: (seed?: Partial<DraftLine>) => void;
 
-    removeLine: (idx: number) => void;
-    setLine: (idx: number, patch: Partial<DraftLine>) => void;
+  removeLine: (idx: number) => void;
+  setLine: (idx: number, patch: Partial<DraftLine>) => void;
 
-    saveItems: () => Promise<void>;
+  saveItems: () => Promise<void>;
 };
 
 export type PurchaseReceiveVm = {
-    confirmOpen: boolean;
-    request: () => void;
-    cancel: () => void;
-    confirm: () => Promise<void>;
-    receiving: boolean;
+  confirmOpen: boolean;
+  request: () => void;
+  cancel: () => void;
+  confirm: () => Promise<void>;
+  receiving: boolean;
 };
 
 export type PurchaseOrderCancelVm = {
-    order: () => Promise<void>;
-    cancel: (reason?: string) => Promise<void>; // ✅ sin null
+  order: () => Promise<void>;
+  cancel: (reason?: string) => Promise<void>;
 };
 
 export type PurchaseDetailVm = {
-    purchaseId: string;
-    purchase: PurchaseWithItemsDTO | null;
-    loading: boolean;
-    error: string | null;
+  purchaseId: string;
+  purchase: PurchaseWithItemsDTO | null;
+  loading: boolean;
+  error: string | null;
 
-    goBack: () => void;
-    reload: () => Promise<void>;
+  goBack: () => void;
+  reload: () => Promise<void>;
 
-    flags: PurchaseFlags;
+  flags: PurchaseFlags;
 
-    editor: PurchaseItemsEditorVm;
-    receive: PurchaseReceiveVm;
-    order: PurchaseOrderCancelVm;
+  editor: PurchaseItemsEditorVm;
+  receive: PurchaseReceiveVm;
+  order: PurchaseOrderCancelVm;
 };

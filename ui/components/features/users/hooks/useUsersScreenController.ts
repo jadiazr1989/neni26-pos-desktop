@@ -227,7 +227,6 @@ export function useUsersScreenController() {
 
       const newPassword = payload.password?.trim() ?? "";
       const wantsPasswordChange = newPassword.length > 0;
-console.log(newPassword)
       // 1) Password change
       if (wantsPasswordChange) {
         const pwv = validatePassword(newPassword);

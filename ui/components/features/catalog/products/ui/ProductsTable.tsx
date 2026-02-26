@@ -18,54 +18,58 @@ export function ProductsTable(props: {
 
   onOpen: (p: ProductDTO) => void;
   onEdit: (p: ProductDTO) => void;
-  selectedId?: string | null; // 👈 NUEVO
-  // ✅ ahora pasa name también
   onDelete: (id: string, name: string) => Promise<void> | void;
 
+  selectedId?: string | null;
   height?: number;
 }) {
-  const columns = React.useMemo<Array<VirtualColumnDef<ProductDTO>>>(() => {
-    return [
-      {
-        key: "name",
-        header: "Nombre",
-        className: "col-span-4",
-        render: (p) => (
-          <button onClick={() => props.onOpen(p)} className="w-full text-left">
-            <div className="font-medium truncate">{p.name}</div>
-            <div className="text-xs text-muted-foreground truncate">Barcode: {p.barcode ?? "—"}</div>
-          </button>
-        ),
-      },
-      {
-        key: "brand",
-        header: "BrandId",
-        className: "col-span-2 text-xs text-muted-foreground truncate",
-        render: (p) => p.brandId ?? "—",
-      },
-      {
-        key: "cat",
-        header: "CategoryId",
-        className: "col-span-2 text-xs text-muted-foreground truncate",
-        render: (p) => p.categoryId ?? "—",
-      },
-      {
-        key: "variants",
-        header: "#Vars",
-        className: "col-span-1 text-xs text-muted-foreground",
-        render: (p) => fmtCount(p.variants?.length ?? 0),
-      },
-      {
-        key: "status",
-        header: "Status",
-        className: "col-span-2 text-xs text-muted-foreground truncate",
-        render: (p) => String(p.status ?? "—"),
-      },
-      {
-        key: "actions",
-        header: <span className="w-full text-right block">Acc.</span>,
-        className: "col-span-1",
-        render: (p) => (
+  const columns: Array<VirtualColumnDef<ProductDTO>> = [
+    {
+      key: "name",
+      header: "Nombre",
+      className: "col-span-4 min-w-0",
+      render: (p) => (
+        <div className="min-w-0">
+          <div className="font-medium truncate">{p.name}</div>
+          <div className="text-xs text-muted-foreground truncate">Barcode: {p.barcode ?? "—"}</div>
+        </div>
+      ),
+    },
+    {
+      key: "brand",
+      header: "BrandId",
+      className: "col-span-2 text-xs text-muted-foreground truncate",
+      render: (p) => p.brandId ?? "—",
+    },
+    {
+      key: "cat",
+      header: "CategoryId",
+      className: "col-span-2 text-xs text-muted-foreground truncate",
+      render: (p) => p.categoryId ?? "—",
+    },
+    {
+      key: "variants",
+      header: "#Vars",
+      className: "col-span-1 text-xs text-muted-foreground",
+      render: (p) => fmtCount(p.variants?.length ?? 0),
+    },
+    {
+      key: "status",
+      header: "Status",
+      className: "col-span-2 text-xs text-muted-foreground truncate",
+      render: (p) => String(p.status ?? "—"),
+    },
+    {
+      key: "actions",
+      header: <span className="w-full text-right block">Acc.</span>,
+      className: "col-span-1",
+      render: (p) => (
+        <div
+          className="flex justify-end"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <RowActions
             onEdit={() => props.onEdit(p)}
             onDelete={() => props.onDelete(p.id, p.name)}
@@ -74,14 +78,14 @@ export function ProductsTable(props: {
               message: "Solo se puede eliminar si NO tiene variantes. ¿Deseas continuar?",
               confirmText: "Continuar",
               cancelText: "Cancelar",
-              destructive: false, // ✅ paso 1 NO rojo
+              destructive: false,
             }}
             disabled={props.loading}
           />
-        ),
-      },
-    ];
-  }, [props]);
+        </div>
+      ),
+    },
+  ];
 
   return (
     <VirtualDataTable<ProductDTO>
@@ -94,10 +98,12 @@ export function ProductsTable(props: {
       isLoading={props.loading}
       hasMore={props.hasMore}
       onEndReached={props.loadMore}
-      getRowClassName={(row) =>
-        row.id === props.selectedId ? "bg-muted/60 ring-1 ring-ring" : ""
-      }
+      empty={<span className="text-sm text-muted-foreground">Sin productos.</span>}
+      onRowClick={(p) => props.onOpen(p)}
+      getRowClassName={(row) => {
+        const selected = props.selectedId && row.id === props.selectedId;
+        return ["cursor-pointer", selected ? "bg-muted/60 ring-1 ring-ring" : ""].filter(Boolean).join(" ");
+      }}
     />
-
   );
 }

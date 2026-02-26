@@ -1,3 +1,4 @@
+// src/modules/catalog/products/ui/ProductDialog.view.tsx
 "use client";
 
 import * as React from "react";
@@ -9,8 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { VariantUnit } from "@/lib/modules/catalog/products/product.dto";
-import { VariantUnitSelect } from "../VariantUnitSelect";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 type Option = { value: string; label: string };
@@ -26,9 +25,6 @@ export type ProductDialogViewProps = {
   description: string;
   brandId: string | null;
   categoryId: string | null;
-
-  baseUnit: VariantUnit;
-  onBaseUnitChange: (v: VariantUnit) => void;
 
   error: string | null;
 
@@ -60,21 +56,20 @@ export type ProductDialogViewProps = {
 };
 
 export function ProductDialogView(p: ProductDialogViewProps) {
-  const isCreate = p.mode === "create";
   const canSubmit = !p.submitting && !!p.name.trim() && !!p.categoryId;
 
   return (
     <Dialog open={p.open} onOpenChange={p.onOpenChange}>
       <DialogContent className="sm:max-w-2xl p-0">
-        {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
           <DialogTitle className="text-lg">{p.title}</DialogTitle>
           <div className="text-sm text-muted-foreground">
-            {isCreate ? "Crea un producto y su variante base." : "Edita la información general del producto."}
+            {p.mode === "create"
+              ? "Crea un producto (la variante base se crea por backend)."
+              : "Edita la información general del producto."}
           </div>
         </DialogHeader>
 
-        {/* Body */}
         <div className="px-6 py-6 space-y-6">
           {p.error && (
             <Alert variant="destructive">
@@ -82,38 +77,16 @@ export function ProductDialogView(p: ProductDialogViewProps) {
             </Alert>
           )}
 
-          {/* Nombre + Unidad base (compacta y alineada) */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-            <div className={isCreate ? "md:col-span-9" : "md:col-span-12"}>
-              <FieldLabel required>Nombre</FieldLabel>
-              <Input
-                value={p.name}
-                onChange={(e) => p.onNameChange(e.target.value)}
-                placeholder="Ej: Coca Cola"
-                disabled={p.submitting}
-              />
-              <HelpText>Visible en catálogo y POS.</HelpText>
-            </div>
-
-            {isCreate && (
-              <div className="md:col-span-3">
-                <div className="flex items-center justify-between">
-                  <FieldLabel required>Unidad base</FieldLabel>
-                </div>
-
-                <VariantUnitSelect
-                  value={p.baseUnit}
-                  onChange={p.onBaseUnitChange}
-                  disabled={p.submitting}
-                  align="right"
-                  widthClassName="w-full md:w-[160px]"
-                  triggerClassName="bg-muted/30"
-                  placeholder="Unidad…"
-                />
-
-                <HelpText>Define la variante base.</HelpText>
-              </div>
-            )}
+          {/* Nombre */}
+          <div className="grid gap-2">
+            <FieldLabel required>Nombre</FieldLabel>
+            <Input
+              value={p.name}
+              onChange={(e) => p.onNameChange(e.target.value)}
+              placeholder="Ej: Coca Cola"
+              disabled={p.submitting}
+            />
+            <HelpText>Visible en catálogo y POS.</HelpText>
           </div>
 
           {/* Barcode + Descripción */}
@@ -184,7 +157,6 @@ export function ProductDialogView(p: ProductDialogViewProps) {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-border bg-background flex items-center justify-between">
           <div className="text-xs text-muted-foreground">
             {!p.categoryId ? "* Requiere categoría para guardar." : null}

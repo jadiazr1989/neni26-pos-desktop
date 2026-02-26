@@ -3,10 +3,15 @@
 
 import * as React from "react";
 import { inventoryService } from "@/lib/modules/inventory/inventory.service";
-import type { WarehouseStockRowDTO } from "@/lib/modules/inventory/inventory.dto";
+
+// ✅ OJO: usamos UI row (lo que devuelve inventoryService.getMyWarehouseStock)
+import type { WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
+
+// units
+import type { Unit, SellUnit } from "@/lib/modules/catalog/products/product.dto";
 
 export type VariantPick = {
-  id: string; // variantId
+  id: string;
   label: string;
   sku: string;
   barcode: string | null;
@@ -15,40 +20,53 @@ export type VariantPick = {
   isActive: boolean;
   productName: string | null;
 
-  unit: string;              // ✅
-  priceBaseMinor: number;    // ✅
-  costBaseMinor: number;     // ✅
+  // ✅ units model
+  baseUnit: Unit; // UNIT | G | ML
+  pricingUnit: SellUnit; // UNIT | G | KG | LB | ML | L
+  unitFactor: string | null;
+
+  // ✅ money per pricingUnit
+  priceBaseMinor: number;
+  costBaseMinor: number;
 };
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-function buildLabel(r: WarehouseStockRowDTO): string {
-  const sku = r.variant?.sku ?? "—";
-  const title = r.variant?.title ?? "";
-  const productName = r.variant?.product?.name ?? null;
+function normalizeCode(s: string): string {
+  return String(s ?? "").trim().toLowerCase();
+}
+
+function buildLabel(r: WarehouseStockRowUI): string {
+  const sku = r?.sku ?? "—";
+  const title = r?.title ?? "";
+  const productName = r?.productName ?? null;
   return [sku, title, productName ? `(${productName})` : ""].filter(Boolean).join(" · ").trim();
 }
 
-function mapPick(r: WarehouseStockRowDTO): VariantPick {
+function mapPick(r: WarehouseStockRowUI): VariantPick {
+
+  // si por alguna razón viene null (no debería), protegemos:
+  const safeSku = r?.sku ?? "—";
+  const safeBaseUnit = (r?.baseUnit ?? "UNIT") as Unit;
+  const safePricingUnit = (r?.pricingUnit ?? "UNIT") as SellUnit;
+
   return {
     id: r.variantId,
     label: buildLabel(r),
-    sku: r.variant.sku,
-    barcode: r.variant.barcode,
-    title: r.variant.title,
-    imageUrl: r.variant.imageUrl,
-    isActive: r.variant.isActive,
-    productName: r.variant.product?.name ?? null,
 
-    unit: r.variant.unit, // ✅
-    priceBaseMinor: Number(r.variant.priceBaseMinor ?? 0), // ✅
-    costBaseMinor: Number(r.variant.costBaseMinor ?? 0),   // ✅
+    sku: safeSku,
+    barcode: r?.barcode ?? null,
+    title: r?.title ?? null,
+    imageUrl: r?.imageUrl ?? null,
+    isActive: Boolean(r?.isActive ?? true),
+    productName: r?.productName ?? null,
+
+    baseUnit: safeBaseUnit,
+    pricingUnit: safePricingUnit,
+    unitFactor: r?.unitFactor ?? null,
+    priceBaseMinor: Number(r?.priceBaseMinor ?? 0),
+    costBaseMinor: Number(r?.costBaseMinor ?? 0),
   };
-}
-
-
-function normalizeCode(s: string): string {
-  return s.trim().toLowerCase();
 }
 
 export function useMyWarehouseVariantIndex(params?: { maxItems?: number; pageSize?: number }) {
@@ -90,8 +108,8 @@ export function useMyWarehouseVariantIndex(params?: { maxItems?: number; pageSiz
 
     try {
       const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor: null });
-      const dtoRows = res.rows as WarehouseStockRowDTO[];
-      const picks = dtoRows.map(mapPick);
+      // ✅ res.rows ya viene UI (WarehouseStockRowUI[])
+      const picks = res.rows.map(mapPick);
 
       setItems(picks);
       setNextCursor(res.nextCursor ?? null);
@@ -112,15 +130,13 @@ export function useMyWarehouseVariantIndex(params?: { maxItems?: number; pageSiz
 
     try {
       const res = await inventoryService.getMyWarehouseStock({ limit: pageSize, cursor: nextCursor });
-      const dtoRows = res.rows as WarehouseStockRowDTO[];
-      const picks = dtoRows.map(mapPick);
+      const picks = res.rows.map(mapPick);
 
       const m = new Map<string, VariantPick>();
       for (const it of items) m.set(it.id, it);
       for (const it of picks) m.set(it.id, it);
 
-      const merged = Array.from(m.values());
-      setItems(merged);
+      setItems(Array.from(m.values()));
       setNextCursor(res.nextCursor ?? null);
       setLoadState("ready");
     } catch (e: unknown) {

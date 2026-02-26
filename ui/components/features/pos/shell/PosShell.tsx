@@ -20,9 +20,19 @@ import { CashOpenGateModal } from "@/components/features/pos/cash/ui/CashOpenGat
 
 import { usePosShellCashVm } from "./hooks/usePosShellCashVm";
 
+// ✅ NUEVO: hook de checkout UI (modal)
+import { usePosSaleCheckout } from "../sale/hooks/usePosSaleCheckout";
+import { PosCheckoutModal } from "../sale/ui/modal/posCheckout/PosCheckoutModal";
+import { usePosCatalogUi } from "@/stores/posCatalogUi.store";
+
+// ✅ Aquí asumo que tienes un modal UI real que consume checkoutUi.
+// Si no lo tienes todavía, te dejo al final un stub.
+
 function CashBadgeDot(props: { show: boolean }): JSX.Element | null {
   if (!props.show) return null;
-  return <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background" />;
+  return (
+    <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background" />
+  );
 }
 
 export function PosShell(props: { initialUser: MeUser; children: ReactNode }): JSX.Element {
@@ -31,16 +41,26 @@ export function PosShell(props: { initialUser: MeUser; children: ReactNode }): J
 
   const vm = usePosShellCashVm({ initialUser: props.initialUser, pollMs: 15000 });
 
-  // Sale store (demo)
+  // ✅ Sale store (nuevo)
   const items = usePosSaleStore((s) => s.items);
   const totals = usePosSaleStore((s) => s.totals);
-  const saleStatus = usePosSaleStore((s) => s.status);
   const canPay = usePosSaleStore((s) => s.canPay);
   const clear = usePosSaleStore((s) => s.clear);
-  const checkout = usePosSaleStore((s) => s.checkout);
+  const checkoutStatus = usePosSaleStore((s) => s.checkoutStatus);
+
+  // ✅ Hook de checkout (modal + pagos múltiples)
+  const bumpCatalog = usePosCatalogUi((s) => s.bump);
+
+  const checkoutUi = usePosSaleCheckout({
+    cashSessionId: vm.cashSessionId ?? null,
+    onPaid: async () => {
+      bumpCatalog(); // ✅ refresh grid
+    },
+  });
+
 
   const showBottomBar = pathname.startsWith("/pos/sales");
-  const paying = saleStatus === "checking_out";
+  const paying = checkoutStatus === "paying";
   const itemsInProgress = items.length > 0;
 
   // cancel sale confirm (UI)
@@ -67,6 +87,37 @@ export function PosShell(props: { initialUser: MeUser; children: ReactNode }): J
     </div>
   );
 
+  const onPay = React.useCallback(async () => {
+    if (!vm.gate.readyToSell) return;
+
+    if (!vm.cashSessionId) {
+      notify.error({
+        title: "Caja no disponible",
+        description: "Abre la caja antes de realizar el cobro.",
+      });
+      return;
+    }
+
+    try {
+      const result = await usePosSaleStore.getState().validateBeforeCheckout();
+      if (result === "FIXED") {
+        // ✅ ticket ya fue corregido y el toast ya salió
+        // ✅ NO abras el modal: deja que el usuario revise y presione Cobrar otra vez
+        return;
+      }
+
+      // ✅ OK -> ahora sí
+      checkoutUi.open();
+    } catch (e) {
+      notify.error({
+        title: "No se puede cobrar",
+        description: e instanceof Error ? e.message : "Error validando el ticket.",
+      });
+    }
+  }, [checkoutUi, vm.cashSessionId, vm.gate.readyToSell]);
+
+
+
   return (
     <div className="h-screen w-screen bg-background text-foreground overflow-hidden flex flex-col">
       <PosShellTopBar
@@ -92,27 +143,34 @@ export function PosShell(props: { initialUser: MeUser; children: ReactNode }): J
           offline={vm.gate.offline}
           cashOpen={vm.gate.cashOpen}
           itemsCount={items.length}
-          total={totals.total}
+          totalMinor={totals.totalMinor} // ✅
           paying={paying}
-          payDisabled={!canPay()}
-          onPay={async () => {
-            if (!vm.gate.readyToSell) return;
-            if (!vm.cashSessionId) return;
-            if (!canPay()) return;
-
-            if (!vm.xTerminalId) {
-              notify.warning({ title: "Terminal no listo", description: "Falta terminalId para procesar el pago." });
-              return;
-            }
-
-            await checkout({ terminalId: vm.xTerminalId, cashSessionId: vm.cashSessionId });
-          }}
+          payDisabled={!canPay() || vm.gate.offline || !vm.gate.cashOpen} // ✅ típico gate
+          onPay={onPay}
           onCancelSale={onRequestCancelSale}
           onHoldSale={() => notify.warning({ title: "Hold", description: "Pendiente de implementar." })}
           onNote={() => notify.warning({ title: "Nota", description: "Pendiente de implementar." })}
           onCustomer={() => notify.warning({ title: "Cliente", description: "Pendiente de implementar." })}
         />
       )}
+
+      {/* ✅ Modal de cobro (con el hook que ya tienes) */}
+      <PosCheckoutModal
+        isOpen={checkoutUi.isOpen}
+        onClose={checkoutUi.close}
+        state={checkoutUi.state}
+        totals={checkoutUi.totals}
+        lines={checkoutUi.lines}
+        paidMinor={checkoutUi.paidMinor}
+        changeMinor={checkoutUi.changeMinor}
+        syncStatus={checkoutUi.syncStatus}
+        addPaymentLine={checkoutUi.addPaymentLine}
+        removePaymentLine={checkoutUi.removePaymentLine}
+        updatePaymentLine={checkoutUi.updatePaymentLine}
+        setQuickCash={checkoutUi.setQuickCash}
+        onSubmit={checkoutUi.submit}
+      />
+
 
       {/* Cash overlays */}
       <CashCountCloseModal

@@ -1,17 +1,30 @@
 // src/lib/modules/purchases/purchase.dto.ts
+import type { Unit, SellUnit } from "../catalog/products/product.dto";
+import type { MoneyStr } from "@/lib/money/moneyStr";
+
 export type PurchaseStatus = "DRAFT" | "ORDERED" | "RECEIVED" | "CANCELLED";
 
 export type PurchaseItemDTO = {
   id: string;
   purchaseId: string;
   productVariantId: string;
-  quantity: number;
+
+  // ✅ NEW contract
+  qtyInput: string;       // "0.5"
+  unitInput: SellUnit;    // "KG" | "LB" | ...
+  qtyBaseMinor: number;   // baseMinor int
+  displayUnit: SellUnit;  // normalmente pricingUnit
+  qtyDisplay: string;     // "0.50" (ya calculado por backend)
+
   unitCostBaseMinor: number;
   unitPriceBaseMinor: number | null;
-  lineTotalBaseMinor: number;
+
+  // ✅ BigInt -> string
+  lineTotalBaseMinor: MoneyStr;
+
   createdAt: string;
 
-   variant: {
+  variant?: {
     id: string;
     sku: string;
     barcode: string | null;
@@ -19,6 +32,14 @@ export type PurchaseItemDTO = {
     imageUrl: string | null;
     isActive: boolean;
     product: { id: string; name: string };
+
+    baseUnit: Unit;
+    pricingUnit: SellUnit;
+    unitFactor: string | null;
+    allowedUnitsJson?: unknown | null;
+
+    costBaseMinor: number;
+    priceBaseMinor: number;
   } | null;
 };
 
@@ -27,10 +48,13 @@ export type PurchaseDTO = {
   warehouseId: string;
   supplierId: string | null;
   status: PurchaseStatus;
-  subtotalBaseMinor: number;
-  taxBaseMinor: number;
-  discountBaseMinor: number;
-  totalBaseMinor: number;
+
+  // ✅ BigInt -> string
+  subtotalBaseMinor: MoneyStr;
+  taxBaseMinor: MoneyStr;
+  discountBaseMinor: MoneyStr;
+  totalBaseMinor: MoneyStr;
+
   invoiceNumber: string | null;
   notes: string | null;
   createdById: string | null;
@@ -41,14 +65,31 @@ export type PurchaseDTO = {
 
 export type PurchaseWithItemsDTO = PurchaseDTO & { items: PurchaseItemDTO[] };
 
-export type ListPurchasesResponse = { purchases: PurchaseDTO[] };
 export type GetPurchaseResponse = { purchase: PurchaseWithItemsDTO };
+
+export type PurchaseItemVariantDTO = {
+  id: string;
+  sku: string;
+  barcode: string | null;
+  title: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  product: { id: string; name: string };
+
+  baseUnit: Unit;
+  pricingUnit: SellUnit;
+  unitFactor: string | null;
+
+  priceBaseMinor: number;
+  costBaseMinor: number;
+};
+
+export type ListPurchasesResponse = { purchases: PurchaseDTO[] };
 
 export type CreatePurchaseInput = {
   supplierId?: string | null;
   invoiceNumber?: string | null;
   notes?: string | null;
-  // warehouseId sale del terminalContext (no lo mandes desde UI)
 };
 
 export type CreatePurchaseResponse = {
@@ -59,7 +100,10 @@ export type CreatePurchaseResponse = {
 export type SetPurchaseItemsInput = {
   items: Array<{
     productVariantId: string;
-    quantity: number;
+
+    qtyInput: string;
+    unitInput: SellUnit;
+
     unitCostBaseMinor: number;
     unitPriceBaseMinor?: number | null;
   }>;
@@ -69,7 +113,7 @@ export type SetPurchaseItemsResponse = { purchase: PurchaseWithItemsDTO };
 
 export type ReceivePurchaseInput = {
   notes?: string | null;
-  receivedAt?: string | null; // ISO
+  receivedAt?: string | null;
 };
 
 export type ReceivePurchaseResponse = { purchase: PurchaseWithItemsDTO };
@@ -91,4 +135,3 @@ export type CancelPurchaseResponse = { purchase: PurchaseDTO };
 export type CancelPurchaseInput = {
   reason?: string | null;
 };
-

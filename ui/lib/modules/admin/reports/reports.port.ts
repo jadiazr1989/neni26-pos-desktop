@@ -6,6 +6,8 @@ import type {
   AdminOverviewQuery,
   AdminOverviewResponse,
   ListCashSessionsQuery,
+  AdminAlertsQuery,
+  AdminAlertsResponse,
 } from "./reports.dto";
 
 export interface AdminReportsPort {
@@ -13,4 +15,5 @@ export interface AdminReportsPort {
   cashSessionDetail(id: string): Promise<AdminCashSessionDetailResponse>;
   dailySummary(q: AdminDailySummaryQuery): Promise<AdminDailySummaryResponse>;
   overview(q: AdminOverviewQuery): Promise<AdminOverviewResponse>;
+  alerts(q: AdminAlertsQuery): Promise<AdminAlertsResponse>;
 }

@@ -1,3 +1,4 @@
+// src/modules/purchases/hooks/usePurchaseItemsEditor.ts
 "use client";
 
 import * as React from "react";
@@ -8,10 +9,29 @@ import type { DraftLine, PurchaseItemsEditorVm } from "./purchaseDetail.types";
 import {
   draftLinesToSetItemsInput,
   errDesc,
-  itemsToDraftLines,
+  itemsToDraftLinesRehydrated,
   mergeByVariantId,
   normalizeId,
 } from "./purchaseDetail.helpers";
+import type { SellUnit } from "@/lib/modules/catalog/products/product.dto";
+
+function parseQtyInput(raw: unknown): number | null {
+  const s = String(raw ?? "").trim().replace(",", ".");
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function cleanServerFields(): Pick<DraftLine, "qtyDisplay" | "displayUnit" | "lineTotalBaseMinor"> {
+  return { qtyDisplay: null, displayUnit: null, lineTotalBaseMinor: null };
+}
+
+// type-guard: “seed trae explícitamente unitPriceBaseMinor”
+function hasUnitPriceBaseMinor(
+  seed: Partial<DraftLine> | undefined,
+): seed is Partial<DraftLine> & { unitPriceBaseMinor: number | null } {
+  return Boolean(seed) && Object.prototype.hasOwnProperty.call(seed, "unitPriceBaseMinor");
+}
 
 export function usePurchaseItemsEditor(opts: {
   purchaseId: string;
@@ -26,61 +46,98 @@ export function usePurchaseItemsEditor(opts: {
   const [dirty, setDirty] = React.useState(false);
 
   const syncFromPurchase = React.useCallback((p: PurchaseWithItemsDTO) => {
-    setLines(itemsToDraftLines(p));
+    setLines((prev) => itemsToDraftLinesRehydrated(p, prev));
     setDirty(false);
   }, []);
 
   const openAdd = React.useCallback((seed?: Partial<DraftLine>) => {
     const id = normalizeId(seed?.productVariantId ?? "");
     if (!id) {
-      notify.error({
-        title: "Variante inválida",
-        description: "No se pudo agregar: falta el ID de la variante.",
-      });
+      notify.error({ title: "Variante inválida", description: "No se pudo agregar: falta el ID de la variante." });
       return;
     }
 
-    const qtySeed = Number(seed?.quantity ?? 1);
-    const costSeed = Number(seed?.unitCostBaseMinor ?? 0);
+    const seedQtyInput = String(seed?.qtyInput ?? "").trim();
+    const seedUnitInput = (seed?.unitInput ?? "UNIT") as SellUnit;
+    const seedQtyBaseMinor = Number(seed?.qtyBaseMinor ?? 0);
 
-    const hasPrice = Object.prototype.hasOwnProperty.call(seed ?? {}, "unitPriceBaseMinor");
-    const priceSeed = (seed as Partial<DraftLine> | undefined)?.unitPriceBaseMinor;
+    const seedCost = Number(seed?.unitCostBaseMinor ?? 0);
 
-    // ✅ si viene meta, la guardamos
-    const variantSeed = (seed as Partial<DraftLine> | undefined)?.variant ?? null;
+    const priceProvided = hasUnitPriceBaseMinor(seed);
+    const seedPrice = priceProvided ? seed.unitPriceBaseMinor : undefined;
+
+    const seedVariant: DraftLine["variant"] = seed?.variant ?? null;
 
     setLines((prev) => {
       const idx = prev.findIndex((x) => normalizeId(x.productVariantId) === id);
 
+      // ✅ existe
       if (idx >= 0) {
-        const cur = prev[idx]!;
         const next = prev.slice();
+        const cur = next[idx]!;
 
+        const nextVariant = seedVariant ?? cur.variant ?? null;
+
+        // si seed NO trae qtyInput explícito, comportamiento “tap”
+        const shouldAutoInc = seedQtyInput === "" && cur.unitInput === "UNIT";
+
+        if (shouldAutoInc) {
+          const n = parseQtyInput(cur.qtyInput);
+          const nextQty = n == null ? 1 : n + 1;
+
+          next[idx] = {
+            ...cur,
+            ...cleanServerFields(),
+            productVariantId: id,
+            qtyInput: String(nextQty),
+            unitInput: cur.unitInput,
+            qtyBaseMinor: Math.max(0, Math.trunc(Number(cur.qtyBaseMinor ?? 0) + 1)),
+
+            unitCostBaseMinor: Number.isFinite(seedCost) && seedCost >= 0 ? seedCost : cur.unitCostBaseMinor,
+            unitPriceBaseMinor: priceProvided ? (seedPrice ?? null) : cur.unitPriceBaseMinor,
+
+            variant: nextVariant,
+          };
+          return next;
+        }
+
+        // ✅ no auto-increment (measure units o seed trae qtyInput)
         next[idx] = {
           ...cur,
+          ...cleanServerFields(),
           productVariantId: id,
-          quantity: Number(cur.quantity ?? 0) + (Number.isFinite(qtySeed) ? qtySeed : 0),
-          unitCostBaseMinor:
-            Number.isFinite(costSeed) && costSeed > 0 ? costSeed : Number(cur.unitCostBaseMinor ?? 0),
-          unitPriceBaseMinor: hasPrice ? (priceSeed == null ? null : Number(priceSeed)) : cur.unitPriceBaseMinor,
 
-          // ✅ NO perder meta: si seed trae, reemplaza (porque puede venir más fresco)
-          variant: variantSeed ?? cur.variant ?? null,
+          qtyInput: seedQtyInput !== "" ? seedQtyInput : cur.qtyInput,
+          unitInput: seedUnitInput || cur.unitInput,
+          qtyBaseMinor: seedQtyBaseMinor > 0 ? seedQtyBaseMinor : cur.qtyBaseMinor,
+
+          unitCostBaseMinor: Number.isFinite(seedCost) && seedCost >= 0 ? seedCost : cur.unitCostBaseMinor,
+          unitPriceBaseMinor: priceProvided ? (seedPrice ?? null) : cur.unitPriceBaseMinor,
+
+          variant: nextVariant,
         };
 
         return next;
       }
 
+      // ✅ nueva línea
       return [
         ...prev,
         {
           productVariantId: id,
-          quantity: Number.isFinite(qtySeed) ? qtySeed : 1,
-          unitCostBaseMinor: Number.isFinite(costSeed) ? costSeed : 0,
-          unitPriceBaseMinor: hasPrice ? (priceSeed == null ? null : Number(priceSeed)) : null,
 
-          // ✅ meta
-          variant: variantSeed,
+          qtyInput: seedQtyInput !== "" ? seedQtyInput : "1",
+          unitInput: seedUnitInput,
+          qtyBaseMinor: seedQtyBaseMinor > 0 ? seedQtyBaseMinor : (seedUnitInput === "UNIT" ? 1 : 0),
+
+          unitCostBaseMinor: Number.isFinite(seedCost) && seedCost >= 0 ? seedCost : 0,
+          unitPriceBaseMinor: priceProvided ? (seedPrice ?? null) : null,
+
+          qtyDisplay: null,
+          displayUnit: null,
+          lineTotalBaseMinor: null,
+
+          variant: seedVariant,
         },
       ];
     });
@@ -88,11 +145,6 @@ export function usePurchaseItemsEditor(opts: {
     setDirty(true);
   }, []);
 
-  /**
-   * ⚠️ Antes perdías meta siempre porque solo recibes variantId.
-   * ✅ Ahora incrementa qty pero NO toca cur.variant.
-   * (Si quieres inyectar meta aquí, hay que pasarla desde el caller.)
-   */
   const upsertByVariantId = React.useCallback((variantIdRaw: string) => {
     const variantId = normalizeId(variantIdRaw);
     if (!variantId) {
@@ -102,21 +154,40 @@ export function usePurchaseItemsEditor(opts: {
 
     setLines((prev) => {
       const idx = prev.findIndex((x) => normalizeId(x.productVariantId) === variantId);
+
       if (idx >= 0) {
         const next = prev.slice();
         const cur = next[idx]!;
-        next[idx] = { ...cur, quantity: Number(cur.quantity ?? 0) + 1 };
+
+        if (cur.unitInput === "UNIT") {
+          const n = parseQtyInput(cur.qtyInput);
+          const nextQty = n == null ? 1 : n + 1;
+
+          next[idx] = {
+            ...cur,
+            ...cleanServerFields(),
+            qtyInput: String(nextQty),
+            qtyBaseMinor: Math.max(0, Math.trunc(Number(cur.qtyBaseMinor ?? 0) + 1)),
+          };
+        } else {
+          next[idx] = { ...cur };
+        }
+
         return next;
       }
 
-      // ✅ nueva línea SIN meta (porque aquí no tenemos VariantPick)
       return [
         ...prev,
         {
           productVariantId: variantId,
-          quantity: 1,
+          qtyInput: "1",
+          unitInput: "UNIT",
+          qtyBaseMinor: 1,
           unitCostBaseMinor: 0,
           unitPriceBaseMinor: null,
+          qtyDisplay: null,
+          displayUnit: null,
+          lineTotalBaseMinor: null,
           variant: null,
         },
       ];
@@ -127,11 +198,40 @@ export function usePurchaseItemsEditor(opts: {
 
   const setLine = React.useCallback((idx: number, patch: Partial<DraftLine>) => {
     setLines((prev) => {
+      const cur = prev[idx];
+      if (!cur) return prev;
+
       const next = prev.slice();
-      if (!next[idx]) return prev;
-      next[idx] = { ...next[idx], ...patch };
+
+      const nextVariant =
+        patch.variant === undefined
+          ? cur.variant
+          : patch.variant === null
+            ? null
+            : {
+                ...cur.variant,
+                ...patch.variant,
+                units: {
+                  ...cur.variant?.units,
+                  ...patch.variant.units,
+                },
+                money: {
+                  ...cur.variant?.money,
+                  ...patch.variant.money,
+                },
+                unit: patch.variant.unit ?? cur.variant?.unit ?? patch.variant.units.pricingUnit,
+              };
+
+      next[idx] = {
+        ...cur,
+        ...cleanServerFields(),
+        ...patch,
+        variant: nextVariant,
+      };
+
       return next;
     });
+
     setDirty(true);
   }, []);
 
@@ -146,13 +246,17 @@ export function usePurchaseItemsEditor(opts: {
       return;
     }
 
-    // ✅ normaliza y preserva meta
     const normalized: DraftLine[] = lines.map((l) => ({
       ...l,
       productVariantId: normalizeId(l.productVariantId),
-      quantity: Number(l.quantity ?? 0),
+      qtyInput: String(l.qtyInput ?? "").trim(),
+      unitInput: (l.unitInput ?? "UNIT") as SellUnit,
+      qtyBaseMinor: Number(l.qtyBaseMinor ?? 0),
+
       unitCostBaseMinor: Number(l.unitCostBaseMinor ?? 0),
       unitPriceBaseMinor: l.unitPriceBaseMinor == null ? null : Number(l.unitPriceBaseMinor),
+
+      variant: l.variant ?? null,
     }));
 
     const merged = mergeByVariantId(normalized);
@@ -167,7 +271,8 @@ export function usePurchaseItemsEditor(opts: {
     }
 
     const bad = merged.find((l) => {
-      if (!Number.isFinite(l.quantity) || l.quantity <= 0) return true;
+      const q = parseQtyInput(l.qtyInput);
+      if (q == null || q <= 0) return true;
       if (!Number.isFinite(l.unitCostBaseMinor) || l.unitCostBaseMinor < 0) return true;
       if (l.unitPriceBaseMinor != null && (!Number.isFinite(l.unitPriceBaseMinor) || l.unitPriceBaseMinor < 0))
         return true;
@@ -187,11 +292,13 @@ export function usePurchaseItemsEditor(opts: {
 
     opts.setLoading(true);
     try {
-      // ✅ setItems puede NO devolver meta -> recargamos con getById
       await purchaseService.setItems(opts.purchaseId, input);
 
-      const fresh = await purchaseService.getById(opts.purchaseId); // ✅ aseguras items[].variant
+      // ✅ refresca para traer qtyDisplay/displayUnit/lineTotalBaseMinor reales
+      const fresh = await purchaseService.getById(opts.purchaseId);
       opts.setPurchase(fresh);
+
+      // ✅ rehidrata preservando variant local si backend no la manda
       syncFromPurchase(fresh);
 
       notify.success({ title: "Items guardados", description: "Totales recalculados." });

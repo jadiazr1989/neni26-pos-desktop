@@ -4,8 +4,25 @@
 import type { JSX } from "react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { Tag, UserRound, Keyboard, Layers, Search } from "lucide-react";
+import { Tag, UserRound, Layers, Search } from "lucide-react";
 import { usePosWorkspaceUi } from "@/stores/posWorkspaceUi.store";
+
+export function KeyCap(props: { children: React.ReactNode }) {
+  return (
+    <span
+      className="
+        inline-flex items-center justify-center
+        min-w-[20px] h-[18px] px-1
+        rounded-md border
+        text-[10px] font-mono
+        bg-muted
+        text-muted-foreground
+      "
+    >
+      {props.children}
+    </span>
+  );
+}
 
 export function PosCenterInfoBar(props: { className?: string }): JSX.Element {
   const categoryLabel = usePosWorkspaceUi((s) => s.categoryLabel);
@@ -61,14 +78,24 @@ export function PosCenterInfoBar(props: { className?: string }): JSX.Element {
           ) : null}
         </div>
 
-        <div className="mt-1 flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
-          <Keyboard className="size-3" />
-          <span className="whitespace-nowrap">F2 Buscar</span>
-          <span>·</span>
-          <span className="whitespace-nowrap">Enter Cobrar</span>
-          <span>·</span>
-          <span className="whitespace-nowrap">Esc Menú</span>
-        </div>
+        <div className="mt-1 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+
+  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+    <KeyCap>F2</KeyCap>
+    <span>Buscar</span>
+  </span>
+
+  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+    <KeyCap>↵</KeyCap>
+    <span>Cobrar</span>
+  </span>
+
+  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+    <KeyCap>Esc</KeyCap>
+    <span>Menú</span>
+  </span>
+
+</div>
       </div>
     </div>
   );

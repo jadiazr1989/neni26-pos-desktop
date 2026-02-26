@@ -1,21 +1,21 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCw } from "lucide-react";
 import * as React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus, RefreshCw } from "lucide-react";
 
-import type { WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
 import { useInventoryWarehouseStockTable } from "./hooks/useInventoryWarehouseStockTable";
 import { InventoryWarehouseStockTable } from "./ui/components/InventoryWarehouseStockTable";
+import type { WarehouseStockRowUI } from "@/lib/modules/inventory/inventory.dto";
 
-import { isApiHttpError } from "@/lib/api/envelope";
 import { productService } from "@/lib/modules/catalog/products/product.service";
+import { isApiHttpError } from "@/lib/api/envelope";
 import { notify } from "@/lib/notify/notify";
 
+import { InventoryQuickAdjustDialog } from "./ui/InventoryAdjustDialog";
 import { TriStateFilterBar } from "@/components/shared/TriStateFilterBar";
 import { useTerminalStore } from "@/stores";
-import { InventoryQuickAdjustDialog } from "./ui/InventoryAdjustDialog";
 
 type StockFilter = "all" | "active" | "inactive";
 

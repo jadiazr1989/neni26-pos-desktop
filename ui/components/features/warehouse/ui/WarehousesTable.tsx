@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { VirtualDataTable, type VirtualColumnDef } from "@/components/shared/VirtualDataTable";
-import { RowActions } from "@/components/shared/RowActions";
 import type { WarehouseListRow } from "@/lib/modules/warehouses/warehouse.dto";
 
 export function ActiveBadge({ isActive }: { isActive: boolean }) {
@@ -14,32 +13,48 @@ export function SystemBadge() {
   return <Badge variant="outline">SYSTEM</Badge>;
 }
 
+function rowClassName(args: { selected: boolean; inactive?: boolean }) {
+  return [
+    "cursor-pointer",
+    "hover:bg-muted/40",
+    args.inactive ? "opacity-70" : "",
+    args.selected ? "bg-muted/60 ring-1 ring-ring" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+type Props = {
+  rows: WarehouseListRow[];
+  loading: boolean;
+
+  height?: number;
+
+  hasMore?: boolean;
+  loadMore?: () => void;
+
+  selectedId?: string | null;
+  onRowClick?: (w: WarehouseListRow) => void;
+};
+
 export function WarehousesTable({
   rows,
   loading,
-  hasMore,
+  hasMore = false,
   loadMore,
-  onEdit,
-  onToggleActive,
   height = 520,
-}: {
-  rows: WarehouseListRow[];
-  loading: boolean;
-  hasMore: boolean;
-  loadMore: () => void;
-  onEdit: (w: WarehouseListRow) => void;
-  onToggleActive: (w: WarehouseListRow) => Promise<void> | void;
-  height?: number;
-}) {
+  selectedId,
+  onRowClick,
+}: Props) {
   const columns = React.useMemo<VirtualColumnDef<WarehouseListRow>[]>(
     () => [
       {
         key: "name",
         header: "Warehouse",
-        className: "col-span-5 font-medium truncate",
+        className: "col-span-6",
         render: (w) => (
           <div className="flex items-center gap-2 min-w-0">
-            <span className="truncate">{w.name}</span>
+            <span className="font-medium truncate">{w.name}</span>
             {w.isSystem ? <SystemBadge /> : null}
           </div>
         ),
@@ -47,7 +62,7 @@ export function WarehousesTable({
       {
         key: "meta",
         header: "Código / Ubicación",
-        className: "col-span-4 truncate",
+        className: "col-span-4",
         render: (w) => (
           <div className="min-w-0">
             <div className="truncate">{w.code ?? "—"}</div>
@@ -61,33 +76,12 @@ export function WarehousesTable({
         className: "col-span-2",
         render: (w) => <ActiveBadge isActive={w.isActive} />,
       },
-      {
-        key: "actions",
-        header: <span className="block text-right">Acc.</span>,
-        className: "col-span-1",
-        render: (w) => (
-          <RowActions
-            onEdit={() => onEdit(w)}
-            onToggle={() => onToggleActive(w)}
-            loading={loading}
-            hideToggle={w.isSystem} // ✅ SYSTEM: bloquea activar/desactivar
-            toggleConfirm={{
-              title: w.isActive ? "Desactivar warehouse" : "Reactivar warehouse",
-              message: w.isActive
-                ? "Este warehouse no podrá usarse para operaciones hasta ser reactivado."
-                : "Este warehouse volverá a estar disponible.",
-              confirmText: w.isActive ? "Desactivar" : "Reactivar",
-              destructive: w.isActive,
-            }}
-          />
-        ),
-      },
     ],
-    [loading, onEdit, onToggleActive],
+    []
   );
 
   return (
-    <VirtualDataTable
+    <VirtualDataTable<WarehouseListRow>
       rows={rows}
       columns={columns}
       rowKey={(w) => w.id}
@@ -96,8 +90,15 @@ export function WarehousesTable({
       overscan={10}
       isLoading={loading}
       hasMore={hasMore}
-      onEndReached={loadMore}
+      onEndReached={hasMore ? loadMore : undefined}
       empty={<span className="text-sm text-muted-foreground">Sin warehouses.</span>}
+      onRowClick={onRowClick}
+      getRowClassName={(w) =>
+        rowClassName({
+          selected: Boolean(selectedId && w.id === selectedId),
+          inactive: !w.isActive,
+        })
+      }
     />
   );
 }

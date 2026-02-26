@@ -1,6 +1,6 @@
-// src/modules/catalog/brands/ui/BrandsScreen.tsx
 "use client";
 
+import * as React from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { BrandsTable } from "./ui/BrandsTable";
 
 export function BrandsScreen() {
   const vm = useBrandsScreen();
+  const selectedId = vm.selected?.id ?? null;
 
   return (
     <div className="space-y-4">
@@ -29,7 +30,7 @@ export function BrandsScreen() {
             Refrescar
           </Button>
 
-          <Button onClick={vm.openCreate} variant="outline">
+          <Button onClick={vm.openCreate} variant="outline" disabled={vm.pager.loading}>
             <Plus className="mr-2 size-4" />
             Nueva
           </Button>
@@ -38,21 +39,22 @@ export function BrandsScreen() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="">Listado</CardTitle>
+          <CardTitle>Listado</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {vm.pager.error && (
+          {vm.pager.error ? (
             <Alert>
               <AlertDescription>{vm.pager.error}</AlertDescription>
             </Alert>
-          )}
+          ) : null}
 
           <div className="flex gap-2">
             <Input
               value={vm.search}
               onChange={(e) => vm.setSearch(e.target.value)}
               placeholder="Buscar por nombre/slug…"
+              disabled={vm.pager.loading}
             />
             <Button variant="outline" onClick={() => void vm.refresh()} disabled={vm.pager.loading}>
               Buscar
@@ -64,8 +66,9 @@ export function BrandsScreen() {
             loading={vm.pager.loading}
             hasMore={vm.pager.hasMore}
             loadMore={() => void vm.pager.loadMore()}
-            onEdit={vm.openEdit}
-            onDelete={vm.onDelete}
+            height={520}
+            selectedId={selectedId}
+            onRowClick={(b) => vm.openEdit(b)} // ✅ click fila = edit
           />
         </CardContent>
       </Card>
@@ -77,6 +80,8 @@ export function BrandsScreen() {
         loading={vm.pager.loading}
         onOpenChange={vm.onOpenChangeDialog}
         onSubmit={vm.onSubmit}
+        // ✅ delete desde el dialog
+        onRequestDelete={(b) => vm.onDelete(b.id, b.name)}
       />
 
       <ConfirmDialog
@@ -85,7 +90,7 @@ export function BrandsScreen() {
         title="Eliminar marca"
         description={
           vm.confirmDelete
-            ? `Eliminar “${vm.confirmDelete.name}” de forma permanente. ¿Deseas continuar?`
+            ? `Eliminar “${vm.confirmDelete.name}” de forma permanente. Si tiene productos asociados, no se podrá eliminar. ¿Deseas continuar?`
             : undefined
         }
         confirmText="Eliminar"

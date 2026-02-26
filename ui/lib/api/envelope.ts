@@ -27,6 +27,7 @@ export class ApiHttpError extends Error {
   readonly code?: string;
   readonly reason?: string;
   readonly requestId?: string;
+  readonly details?: unknown;
 
   constructor(input: {
     message: string;
@@ -34,6 +35,7 @@ export class ApiHttpError extends Error {
     code?: string;
     reason?: string;
     requestId?: string;
+    details?: unknown;
   }) {
     super(input.message);
     this.name = "ApiHttpError";
@@ -41,20 +43,20 @@ export class ApiHttpError extends Error {
     this.code = input.code;
     this.reason = input.reason;
     this.requestId = input.requestId;
+    this.details = input.details;
   }
 }
-
 
 export function isApiHttpError(err: unknown): err is ApiHttpError {
   return err instanceof ApiHttpError;
 }
-
 
 export function envelopeErrorParts(env: ApiEnvelope<unknown> | null): {
   code?: string;
   reason?: string;
   requestId?: string;
   message?: string;
+  details?: unknown;
 } {
   if (!env || env.ok) return {};
   return {
@@ -62,5 +64,6 @@ export function envelopeErrorParts(env: ApiEnvelope<unknown> | null): {
     reason: env.error.reason,
     requestId: env.error.requestId,
     message: env.error.message,
+    details: env.error.details,
   };
 }
