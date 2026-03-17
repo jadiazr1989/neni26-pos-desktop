@@ -16,6 +16,7 @@ import {
   Warehouse,
   Move,
   StoreIcon,
+  Activity,
 } from "lucide-react";
 
 import { ROUTES, type RouteId, type UserRole } from "@/core/routing/routeRegistry";
@@ -54,7 +55,8 @@ export const ADMIN_NAV: NavItem[] = [
 
   { key: "purchases", label: "Compras", routeId: "adminPurchases", icon: ClipboardList },
   { key: "reports", label: "Reportes", routeId: "adminReports", icon: BarChart3 },
-  { key: "storage", label: "Tienda", routeId: "adminStoreSettings", icon: StoreIcon },
+  { key: "storage", label: "Configuración POS", routeId: "adminStoreSettings", icon: StoreIcon },
+  { key: "metrics", label: "Métricas Tienda", routeId: "adminStoreMetricsSettings", icon: Activity },
 ];
 
 export function filterByRole(items: NavItem[], role: Role | null): NavItem[] {

@@ -1,8 +1,7 @@
-// src/modules/admin/dashboard/sections/DashboardKpisSection.tsx
 "use client";
 
 import * as React from "react";
-import { Receipt, ShoppingCart, Wallet, Percent, Boxes } from "lucide-react";
+import { Receipt, ShoppingCart, Wallet, BadgeDollarSign, Percent } from "lucide-react";
 import { KpiCard } from "../ui/KpiCard";
 import type { AdminDashboardDataV2 } from "@/lib/modules/admin/dashboard/admin-dashboard.dto";
 import type { DeltaTone } from "../utils/dashboardDeltas";
@@ -21,57 +20,84 @@ export function DashboardKpisSection(props: {
 }) {
   const k = props.data?.kpis;
   const c = props.data?.cash;
+  const cmp = props.data?.comparison;
   const p = props.rangeLabelShort;
+
+  const toneFromDelta = (d: DeltaTone) =>
+    d === "good" ? "success" : d === "bad" ? "danger" : "default";
+
+  const moneyFromMinorNumber = (n: number) => props.money(String(n ?? 0));
+
+  const varianceAbs = c ? Math.abs(c.cashVarianceTotalAbsMinor ?? 0) : 0;
+  const varianceTone =
+    varianceAbs > 0 ? "warning" : c?.hasActiveSession ? "info" : "neutral";
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* 1) Ingresos */}
       <KpiCard
-        title={`Ventas netas · ${p}`}
+        title={`Ingresos · ${p}`}
         value={k ? props.money(k.netSalesBaseMinor) : "—"}
         hint={
           k
-            ? `Brutas ${props.money(k.grossSalesBaseMinor)} · Devol. ${props.money(k.refundsBaseMinor)} · Desc. ${props.money(k.discountsBaseMinor)}`
+            ? `Devol. ${props.money(
+              k.refundsBaseMinor
+            )} · Desc. ${props.money(k.discountsBaseMinor)}`
             : ""
         }
-        tone={props.netDeltaTone === "good" ? "success" : props.netDeltaTone === "bad" ? "danger" : "default"}
+        tone={toneFromDelta(props.netDeltaTone)}
         icon={ShoppingCart}
-        rightMeta={k ? `Margen ${bpsToPctLabel(k.grossMarginPctBps)}` : undefined}
-        clampHint
+        badge={k ? `Margen ${bpsToPctLabel(k.grossMarginPctBps)}` : undefined}
+        rightBadge={cmp ? `Δ ${props.money(cmp.netSalesDeltaBaseMinor)}` : undefined}
       />
 
+      {/* 2) Ganancias (Gross Margin $) */}
+      <KpiCard
+        title={`Ganancias · ${p}`}
+        value={k ? props.money(k.grossMarginBaseMinor) : "—"}
+        hint={
+          k
+            ? `Devol. ${bpsToPctLabel(
+              k.refundRateBps
+            )} · Desc. ${bpsToPctLabel(k.discountRateBps)}`
+            : ""
+        }
+        tone={
+          cmp
+            ? cmp.grossMarginDeltaBaseMinor.startsWith("-")
+              ? "danger"
+              : "success"
+            : "default"
+        }
+        icon={BadgeDollarSign}
+        badge={k ? `Margen ${bpsToPctLabel(k.grossMarginPctBps)}` : undefined}
+        rightBadge={cmp ? `Δ ${props.money(cmp.grossMarginDeltaBaseMinor)}` : undefined}
+      />
       <KpiCard
         title={`Tickets · ${p}`}
-        value={k ? String(k.ticketsCount) : "—"}
-        hint={
-          props.data
-            ? `Δ ${props.data.comparison.ticketsDelta >= 0 ? "+" : ""}${props.data.comparison.ticketsDelta} · Ítems ${k ? k.itemsCount : "—"}`
-            : ""
-        }
-        tone="default"
-        icon={Receipt}
-      />
-
-      <KpiCard
-        title={`Ticket promedio · ${p}`}
         value={k ? props.money(k.avgTicketBaseMinor) : "—"}
-        hint={props.data ? `Δ ${props.money(props.data.comparison.avgTicketDeltaBaseMinor)} · Ítems/ticket ${k ? bpsToPctLabel(k.itemsPerTicketBps) : "—"}` : ""}
-        tone={props.avgDeltaTone === "good" ? "success" : props.avgDeltaTone === "bad" ? "danger" : "default"}
+        
+        tone={toneFromDelta(props.avgDeltaTone)}
         icon={Percent}
-        clampHint
-      />
+        badge={k ? `${k.ticketsCount} tickets` : undefined} // 👈 abajo izquierda
 
+        hint={props.data ? `Δ ${props.money(props.data.comparison.avgTicketDeltaBaseMinor)} · Ítems/ticket ${k ? bpsToPctLabel(k.itemsPerTicketBps) : "—"}` : ""}
+        rightBadge={k ? `Ítems/ticket ${bpsToPctLabel(k.itemsPerTicketBps)}` : undefined} // 👈 abajo derecha
+      />
+      {/* 4) Control de caja (descuadre) */}
       <KpiCard
-        title={`Caja neta · ${p}`}
-        value={c ? props.money(c.netCashBaseMinor) : "—"}
+        title={`Control caja · ${p}`}
+        value={c ? moneyFromMinorNumber(varianceAbs) : "—"}
         hint={
           c
-            ? `Cash ${props.money(c.cashSalesBaseMinor)} · Devol. ${props.money(c.cashRefundsBaseMinor)} · Gastos ${props.money(c.expensesBaseMinor)}`
+            ? `Max ${moneyFromMinorNumber(Math.abs(c.cashVarianceMaxAbsMinor ?? 0))} · Casos ${c.cashVarianceCount ?? 0
+            }`
             : ""
         }
-        tone={c?.hasActiveSession ? "info" : "neutral"}
+        tone={varianceTone}
         icon={Wallet}
-        rightMeta={c ? `Cash share ${bpsToPctLabel(c.cashShareBps)}` : undefined}
-        clampHint
+        badge={c ? (c.hasActiveSession ? "Sesión activa" : "Sin sesión") : undefined}
+        rightBadge={c ? `Cash share ${bpsToPctLabel(c.cashShareBps)}` : undefined}
       />
     </div>
   );

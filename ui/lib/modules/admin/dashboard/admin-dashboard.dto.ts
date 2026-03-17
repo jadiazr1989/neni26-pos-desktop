@@ -1,5 +1,5 @@
 // src/lib/modules/admin/dashboard/admin-dashboard.dto.ts
-// ✅ Aligned with backend: AdminDashboardDataV3 (Enterprise)
+// ✅ Aligned with backend: AdminDashboardData (V3 enterprise)
 
 import { SellUnit } from "../../catalog/products/product.dto";
 
@@ -7,20 +7,20 @@ export type AdminDashboardRange = "today" | "7d" | "30d";
 
 export type AdminDashboardQuery = {
   range?: AdminDashboardRange;
-  warehouseId?: string; // null/undefined => ALL warehouses in store scope (backend)
+  warehouseId?: string;
 };
 
 export type MoneyStr = string;
 
 export type DashboardScopeDTO = {
   storeId: string;
-  warehouseId: string | null; // null => ALL
+  warehouseId: string | null;
 };
 
 export type DashboardPeriodDTO = {
   range: AdminDashboardRange;
-  from: string; // ISO
-  to: string;   // ISO (exclusive)
+  from: string;
+  to: string;
   tz: string;
 };
 
@@ -45,14 +45,14 @@ export type DashboardHealthDriverDTO = {
   key: DashboardHealthDriverKey;
   label: string;
   severity: "info" | "warning" | "critical";
-  scoreImpact: number; // -100..0
+  scoreImpact: number;
   meta?: Record<string, string | number | boolean | null>;
 };
 
 export type DashboardHealthDTO = {
-  score: number; // 0..100
+  score: number;
   status: DashboardHealthStatus;
-  drivers: DashboardHealthDriverDTO[]; // top drivers (max 8)
+  drivers: DashboardHealthDriverDTO[];
 };
 
 // -------------------- Executive KPIs --------------------
@@ -61,12 +61,12 @@ export type DashboardKpisDTO = {
   ticketsCount: number;
 
   itemsCount: number;
-  itemsPerTicketBps: number; // items/ticket * 10000
+  itemsPerTicketBps: number;
 
   grossSalesBaseMinor: MoneyStr;
   refundsBaseMinor: MoneyStr;
   refundsCount: number;
-  refundRateBps: number; // refunds/gross * 10000
+  refundRateBps: number;
 
   netSalesBaseMinor: MoneyStr;
 
@@ -74,14 +74,14 @@ export type DashboardKpisDTO = {
   netSalesPerDayBaseMinor: MoneyStr;
 
   taxBaseMinor: MoneyStr;
-  taxRateBps: number; // tax/gross * 10000
+  taxRateBps: number;
 
   discountsBaseMinor: MoneyStr;
-  discountRateBps: number; // discounts/gross * 10000
+  discountRateBps: number;
 
   cogsBaseMinor: MoneyStr;
   grossMarginBaseMinor: MoneyStr;
-  grossMarginPctBps: number; // margin/net * 10000
+  grossMarginPctBps: number;
 };
 
 // -------------------- Cash control --------------------
@@ -115,7 +115,7 @@ export type DashboardPaymentsByMethodRowDTO = {
   method: "CASH" | "CARD" | "TRANSFER" | "OTHER";
   amountBaseMinor: MoneyStr;
   count: number;
-  pctBps: number; // 0..10000
+  pctBps: number;
 };
 
 export type DashboardPaymentsByMethodDTO = DashboardPaymentsByMethodRowDTO[];
@@ -158,7 +158,7 @@ export type DashboardTopProductDTO = {
 
   revenueBaseMinor: string;
   profitBaseMinor: string;
-  marginPctBps: number; // profit/revenue * 10000
+  marginPctBps: number;
 };
 
 export type DashboardProfitabilityRowDTO = DashboardTopProductDTO;
@@ -347,7 +347,7 @@ export type DashboardComparisonDTO = {
 
 // -------------------- Root --------------------
 
-export type AdminDashboardDataV2 = {
+export type AdminDashboardData = {
   period: DashboardPeriodDTO;
   scope: DashboardScopeDTO;
 
@@ -380,6 +380,12 @@ export type AdminDashboardDataV2 = {
   actions: DashboardActionDTO[];
 };
 
+/**
+ * Compat temporal para componentes viejos.
+ * Cuando termines de migrar todos los imports, puedes borrar este alias.
+ */
+export type AdminDashboardDataV2 = AdminDashboardData;
+
 export type GetAdminDashboardResponse = {
-  dashboard: AdminDashboardDataV2;
+  dashboard: AdminDashboardData;
 };

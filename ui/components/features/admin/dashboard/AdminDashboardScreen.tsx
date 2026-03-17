@@ -1,11 +1,10 @@
-// src/modules/admin/dashboard/AdminDashboardScreen.tsx
 "use client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { TrendingDown, TrendingUp } from "lucide-react";
 
-import type { AdminDashboardDataV2 } from "@/lib/modules/admin/dashboard/admin-dashboard.dto";
+import type { AdminDashboardData } from "@/lib/modules/admin/dashboard/admin-dashboard.dto";
 
 import { DashboardHeader } from "./ui/DashboardHeader";
 import { DashboardScopeBadges } from "./ui/DashboardScopeBadges";
@@ -66,13 +65,19 @@ export function AdminDashboardScreen() {
     ? formatPctBpsSigned(data.comparison.netSalesDeltaPctBps)
     : { label: "—", tone: "neutral" as const };
 
-  const netDeltaTone = data ? moneyToneByDelta(data.comparison.netSalesDeltaBaseMinor) : "neutral";
-  const avgDeltaTone = data ? moneyToneByDelta(data.comparison.avgTicketDeltaBaseMinor) : "neutral";
-  const refundsDeltaTone = data ? moneyToneByDelta(data.comparison.refundsDeltaBaseMinor) : "neutral";
+  const netDeltaTone = data
+    ? moneyToneByDelta(data.comparison.netSalesDeltaBaseMinor)
+    : "neutral";
 
-  // ✅ NO cast: el tipo sale del propio DTO
-  type ProfitRow =
-    NonNullable<AdminDashboardDataV2["profitability"]>["topProfitProducts"][number];
+  const avgDeltaTone = data
+    ? moneyToneByDelta(data.comparison.avgTicketDeltaBaseMinor)
+    : "neutral";
+
+  const refundsDeltaTone = data
+    ? moneyToneByDelta(data.comparison.refundsDeltaBaseMinor)
+    : "neutral";
+
+  type ProfitRow = AdminDashboardData["profitability"]["topProfitProducts"][number];
 
   const onTopProductClick = React.useCallback(
     (p: ProfitRow) => {
@@ -109,9 +114,9 @@ export function AdminDashboardScreen() {
 
       <ComparisonToolbar
         left={
-          <div className="-mx-4 px-4 overflow-x-auto">
+          <div className="-mx-4 overflow-x-auto px-4">
             <div className="flex items-center gap-2 whitespace-nowrap">
-              <span className="text-xs text-muted-foreground mr-1">Comparación</span>
+              <span className="mr-1 text-xs text-muted-foreground">Comparación</span>
 
               <DeltaChip
                 label={`Net ${netPct.label}`}
@@ -155,7 +160,7 @@ export function AdminDashboardScreen() {
       <DashboardAttentionSection data={data} onNav={(p) => router.push(p)} />
 
       <div className="grid gap-5 lg:grid-cols-12">
-        <div className="lg:col-span-8 space-y-5">
+        <div className="space-y-5 lg:col-span-8">
           <DashboardTrendSection
             data={data}
             loading={loading}
@@ -181,7 +186,7 @@ export function AdminDashboardScreen() {
           />
         </div>
 
-        <div className="lg:col-span-4 space-y-5">
+        <div className="space-y-5 lg:col-span-4">
           <DashboardHealthCard
             data={data}
             loading={loading}
@@ -190,9 +195,6 @@ export function AdminDashboardScreen() {
           />
 
           <DashboardQuickActionsSection
-            data={data}
-            loading={loading}
-            money={money}
             onNav={(p) => router.push(p)}
           />
 

@@ -79,16 +79,23 @@ export function AppShell(props: {
 
 
   return (
-    <div className="h-screen w-screen bg-background text-foreground overflow-hidden">
-      <ShellTopBar area={props.area} />
+  <div className="min-h-dvh w-full bg-background text-foreground overflow-x-hidden">
+    <ShellTopBar area={props.area} />
 
-      <div className="h-[calc(100vh-56px)] flex min-h-0">
-        <ShellSidebar items={items} />
+    {/* body */}
+    <div className="flex min-h-[calc(100dvh-56px)]">
+      <ShellSidebar items={items} />
 
-        <main className="flex-1 overflow-auto min-h-0">
-          <div className="p-6">{props.children}</div>
-        </main>
-      </div>
+      {/* main scroll */}
+      <main className="flex-1 min-w-0">
+        <div className="h-[calc(100dvh-56px)] overflow-auto">
+          {/* ✅ container: mantiene proporción y evita deformación */}
+          <div className="mx-auto w-full max-w-[1440px] p-6">
+            {props.children}
+          </div>
+        </div>
+      </main>
     </div>
-  );
+  </div>
+);
 }

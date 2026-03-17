@@ -37,10 +37,10 @@ export function DashboardCashSection(props: {
               }
               right={d.cash.hasActiveSession ? "Sí" : "No"}
             />
-            <RowKV2 left="Neto del período" right={props.money(d.cash.netCashBaseMinor)} />
-            <RowKV2 left="Ventas en efectivo" right={props.money(d.cash.cashSalesBaseMinor)} />
+            <RowKV2 left="Ingresos en efectivo" right={props.money(d.cash.cashSalesBaseMinor)} />
             <RowKV2 left="Devoluciones en efectivo" right={props.money(d.cash.cashRefundsBaseMinor)} />
-            <RowKV2 left="Gastos" right={props.money(d.cash.expensesBaseMinor)} last />
+            <RowKV2 left="Gastos pagados en efectivo" right={props.money(d.cash.expensesBaseMinor)} />
+            <RowKV2 left="Participación efectivo" right={`${(d.cash.cashShareBps / 100).toFixed(2)}%`} last />
           </div>
         )}
       </CardContent>

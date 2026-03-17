@@ -17,7 +17,6 @@ process.on("uncaughtException", (err) => log.error("[uncaughtException]", err));
 // ====== Persistencia cross-platform (Mac/Windows) ======
 const store = new Store({ name: "neni26" });
 
-
 // Guarda cosas estables (NO depende del puerto / origin)
 ipcMain.handle("pos:store:get", (_e, key, fallback) => {
   if (typeof key !== "string") return fallback ?? undefined;
@@ -34,13 +33,21 @@ ipcMain.handle("pos:store:remove", (_e, key) => {
   store.delete(key);
 });
 
-
 ipcMain.handle("pos:terminal:get", () => store.get("terminalId", null));
 ipcMain.handle("pos:terminal:set", (_e, id) => store.set("terminalId", id));
 
 ipcMain.on("pos:isPackaged", (e) => (e.returnValue = app.isPackaged));
 
+// ✅ Solo minimizar (para tu botón en UI)
+ipcMain.handle("pos:window:minimize", () => {
+  const w = BrowserWindow.getFocusedWindow();
+  if (w) w.minimize();
+});
+
 // ====== Single instance (Launchpad / doble click) ======
+let mainWin = null;
+let nextChild = null;
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
@@ -106,10 +113,6 @@ async function loadUrlWithRetry(win, url, tries = 80, delayMs = 200) {
   await win.loadURL(url);
 }
 
-// ====== Globals ======
-let mainWin = null;
-let nextChild = null;
-
 // ====== Dev / Prod loaders ======
 async function loadDev(win) {
   const url = "http://localhost:3000";
@@ -121,17 +124,16 @@ async function startNextServerProd() {
   const uiRoot = path.join(process.resourcesPath, "ui");
   const serverPath = path.join(uiRoot, "server.js");
 
-  const bindHost = "127.0.0.1"; // donde escucha el server
-  const webHost = "localhost";  // lo que usa el navegador (cookies y coherencia con API localhost)
+  const bindHost = "127.0.0.1";
+  const webHost = "localhost";
   const port = await getFreePort(bindHost);
 
   log.info("[prod] uiRoot:", uiRoot);
   log.info("[prod] serverPath:", serverPath);
   log.info("[prod] bind:", `${bindHost}:${port}`);
 
-  // Mata child anterior si existía (por seguridad)
   if (nextChild && !nextChild.killed) {
-    try { nextChild.kill(); } catch { }
+    try { nextChild.kill(); } catch {}
     nextChild = null;
   }
 
@@ -144,7 +146,6 @@ async function startNextServerProd() {
       HOSTNAME: bindHost,
       PORT: String(port),
 
-      // 🔥 Tu API (así no dependes del host/puerto de UI)
       API_BASE_URL: "http://localhost:4000",
       NEXT_PUBLIC_API_BASE_URL: "http://localhost:4000",
     },
@@ -156,11 +157,9 @@ async function startNextServerProd() {
   nextChild.stderr.on("data", (b) => log.warn("[next]", b.toString().trimEnd()));
   nextChild.on("exit", (code, signal) => log.error("[next exit]", { code, signal }));
 
-  // Espera al bind real
   await waitForPort(bindHost, port, 20000);
   await wait(120);
 
-  // Retorna URL que carga la UI (localhost para “coherencia” de cookies)
   return `http://${webHost}:${port}`;
 }
 
@@ -172,27 +171,55 @@ async function loadProd(win) {
 
 // ====== Window ======
 function createWindow() {
+  const isWin = process.platform === "win32";
+
   mainWin = new BrowserWindow({
     width: 1280,
     height: 800,
     show: false,
     backgroundColor: "#0b0b0d",
+
+    // ✅ SOLO Windows POS: sin barra nativa
+    frame: !isWin,
+
+    // ✅ SOLO Windows POS: bloquear tamaño medio / resize / maximize / fullscreen
+    resizable: !isWin,
+    maximizable: !isWin,
+    fullscreenable: !isWin,
+    minimizable: true,
+
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-
-      // ✅ Persistencia de cookies/sesión estable
       partition: "persist:neni26",
     },
   });
 
   mainWin.once("ready-to-show", () => {
     if (!mainWin) return;
+
+    // ✅ abrir grande también en Mac (dev) + Windows (POS)
+    try { mainWin.maximize(); } catch {}
+
     mainWin.show();
     mainWin.focus();
   });
 
+  // ✅ SOLO Windows: forzar siempre maximizada (evita tamaño medio)
+  if (isWin) {
+    const forceMax = () => {
+      if (!mainWin) return;
+      try {
+        if (!mainWin.isMaximized()) mainWin.maximize();
+      } catch {}
+    };
+
+    mainWin.on("restore", forceMax);
+    mainWin.on("show", forceMax);
+    mainWin.on("unmaximize", forceMax);
+    mainWin.on("resize", forceMax);
+  }
 
   mainWin.on("closed", () => {
     mainWin = null;
@@ -205,7 +232,6 @@ function createWindow() {
 
   mainWin.webContents.on("did-fail-load", (_e, code, desc, url) => {
     log.error("[did-fail-load]", { code, desc, url });
-    // No matamos la app aquí; loadUrlWithRetry ya reintenta.
   });
 
   if (app.isPackaged) loadProd(mainWin).catch((e) => log.error("[loadProd]", e));
@@ -216,7 +242,6 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
-  // ✅ CLAVE: Launchpad / dock click cuando la app está viva sin ventanas
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
     else {
@@ -225,17 +250,13 @@ app.whenReady().then(() => {
       w.focus();
     }
   });
-
 });
 
-// Si quieres comportamiento Mac “standard”, deja esto como está.
-// Si quieres que cerrar ventana cierre TODO (incl. next server), usa app.quit() siempre.
-app.on("window-all-closed", () => { // ✅
+app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-// ✅ en quit real, mata child sí o sí
 app.on("before-quit", () => {
-  try { if (nextChild && !nextChild.killed) nextChild.kill(); } catch { }
+  try { if (nextChild && !nextChild.killed) nextChild.kill(); } catch {}
   nextChild = null;
 });

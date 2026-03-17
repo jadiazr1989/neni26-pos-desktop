@@ -1,5 +1,6 @@
-import { InventoryScreen } from "@/components/features/inventory/InventoryScreen";
+import { PosSettingsScreen } from "@/components/features/setup/stores/PosSettingsScreen";
 
-export default function InventoryPage() {
-  return <InventoryScreen />;
+
+export default function AdminPosSettingsPage() {
+  return <PosSettingsScreen />;
 }

@@ -94,6 +94,15 @@ export const ROUTES = {
     requiresCashOpen: false,
     rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
   },
+  adminStoreMetricsSettings: {
+    id: "adminStoreMetricsSettings",
+    path: "/admin/storage-metrics-settings",
+    group: "admin",
+    requiresAuth: true,
+    requiresTerminal: false,
+    requiresCashOpen: false,
+    rolesAllowed: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[],
+  },
   adminUsers: {
     id: "adminUsers",
     path: "/admin/users",

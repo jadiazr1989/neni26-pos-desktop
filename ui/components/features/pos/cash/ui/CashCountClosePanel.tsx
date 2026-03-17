@@ -11,6 +11,7 @@ import type { CashCounted, CashCountReportDTO, CashMode } from "@/lib/modules/ca
 
 export function CashCountClosePanel(props: {
   mode: CashMode;
+  forceCloseRequired?: boolean;
   onClose: () => void;
   onCount: (counted: CashCounted) => Promise<{ report: CashCountReportDTO }>;
   onCloseCash: (counted: CashCounted) => Promise<void>;
@@ -22,10 +23,11 @@ export function CashCountClosePanel(props: {
   const [report, setReport] = React.useState<CashCountReportDTO | null>(null);
   const [confirmCloseOpen, setConfirmCloseOpen] = React.useState(false);
 
-  const title = props.mode === "COUNT" ? "Arqueo de caja" : "Cierre de caja";
+  const forceCloseRequired = props.forceCloseRequired ?? false;
+  const isClose = props.mode === "CLOSE";
+  const title = isClose ? "Cierre de caja" : "Arqueo de caja";
 
   const run = React.useCallback(async () => {
-
     if (loading) {
       return;
     }
@@ -56,7 +58,6 @@ export function CashCountClosePanel(props: {
   }, [cup, usd, loading, props.mode, props.onClose, props.onCloseCash, props.onCount]);
 
   const submit = React.useCallback(() => {
-
     if (props.mode === "CLOSE") {
       setConfirmCloseOpen(true);
       return;
@@ -67,25 +68,37 @@ export function CashCountClosePanel(props: {
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (forceCloseRequired) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
         e.preventDefault();
         e.stopPropagation();
         props.onClose();
       }
+
       if (e.key === "Enter") {
         e.preventDefault();
         if (props.mode === "CLOSE" && !e.ctrlKey) return;
         void submit();
       }
     };
+
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [props.mode, props.onClose, submit]);
+  }, [forceCloseRequired, props.mode, props.onClose, submit]);
 
   return (
     <div className="h-full w-full flex flex-col">
       <div className="px-6 py-4 border-b border-border bg-card/60 backdrop-blur">
         <div className="font-semibold">{title}</div>
-        <div className="text-xs text-muted-foreground">Esc: volver · Enter: confirmar · (CLOSE: Ctrl+Enter)</div>
+        <div className="text-xs text-muted-foreground">
+          {forceCloseRequired
+            ? "Cierre obligatorio activo · Completa el cierre para continuar."
+            : "Esc: volver · Enter: confirmar · (CLOSE: Ctrl+Enter)"}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -93,6 +106,7 @@ export function CashCountClosePanel(props: {
           <div className="min-h-0 overflow-y-auto p-6">
             <CashCountCloseForm
               mode={props.mode}
+              forceCloseRequired={forceCloseRequired}
               loading={loading}
               error={error}
               cup={cup}
@@ -104,15 +118,28 @@ export function CashCountClosePanel(props: {
             />
           </div>
 
-          <CashCountCloseSummary mode={props.mode} cup={cup} usd={usd} report={report} />
+          <CashCountCloseSummary
+            mode={props.mode}
+            cup={cup}
+            usd={usd}
+            report={report}
+            forceCloseRequired={forceCloseRequired}
+          />
         </div>
       </div>
 
       <ConfirmDialog
         open={confirmCloseOpen}
-        onOpenChange={setConfirmCloseOpen}
+        onOpenChange={(next) => {
+          if (loading) return;
+          setConfirmCloseOpen(next);
+        }}
         title="Cerrar caja (Z)"
-        description="Vas a cerrar caja y generar Z. ¿Continuar?"
+        description={
+          forceCloseRequired
+            ? "La caja debe cerrarse ahora para continuar operando. ¿Confirmar cierre?"
+            : "Vas a cerrar caja y generar Z. ¿Continuar?"
+        }
         confirmText="Cerrar caja"
         cancelText="Cancelar"
         destructive

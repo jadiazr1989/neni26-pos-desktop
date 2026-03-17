@@ -20,18 +20,9 @@ export type ReportsOverviewVM = {
 
 type MoneyFormatter = (minorStr: MoneyStr | null | undefined) => string;
 
-function divRoundHalfUp(n: bigint, d: bigint): bigint {
-  if (d <= 0n) return 0n;
-  return (n + d / 2n) / d;
-}
-
-function avgMoneyStr(total: MoneyStr, count: number): MoneyStr {
-  if (count <= 0) return "0";
-  return divRoundHalfUp(bi(total), BigInt(count)).toString();
-}
-
-function moneyStrToNumberSafe(v: MoneyStr): number {
-  const n = Number(bi(v));
+function moneyStrToNumberSafe(v: MoneyStr | null | undefined): number {
+  const raw = v ?? "0";
+  const n = Number(bi(raw));
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -42,14 +33,13 @@ export function buildReportsOverviewVM(params: {
 }): ReportsOverviewVM {
   const { overview, daily, money } = params;
 
-  const ticketPromedioBaseMinor = avgMoneyStr(overview.grossSalesBaseMinor, overview.ticketsCount);
   const refundsBase = bi(overview.refundsBaseMinor);
 
   const kpis: ReportsKpiVM[] = [
     {
       title: "Ventas netas",
       value: money(overview.netBaseMinor),
-      hint: "Ventas netas del período seleccionado (ventas - devoluciones - gastos).",
+      hint: "Ventas netas del período seleccionado (ventas - devoluciones).",
       tone: "success",
     },
     {
@@ -59,8 +49,8 @@ export function buildReportsOverviewVM(params: {
     },
     {
       title: "Ticket promedio",
-      value: money(ticketPromedioBaseMinor),
-      hint: "Promedio por ticket (basado en ventas brutas / tickets).",
+      value: money(overview.avgTicketBaseMinor),
+      hint: "Promedio por ticket (ventas netas / tickets).",
     },
     {
       title: "Devoluciones",
@@ -72,8 +62,10 @@ export function buildReportsOverviewVM(params: {
 
   const trend: TrendDatum[] = daily.map((r) => ({
     date: r.day,
-    tickets: r.ticketsCount,
+    bucket: "day",
+    tickets: Number(r.ticketsCount ?? 0),
     netBaseMinor: moneyStrToNumberSafe(r.netBaseMinor),
+    refundsBaseMinor: moneyStrToNumberSafe(r.refundsBaseMinor),
   }));
 
   return { kpis, trend };

@@ -7,21 +7,13 @@ import { Label } from "@/components/ui/label";
 import type { JSX } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { OpenCashRequestDTO } from "@/lib/cash.types";
 import { useOpenCash } from "../hooks/useOpenCash";
+import { OpenCashRequest } from "@/lib/modules/cash/cash.dto";
 
 type GateReason = "OFFLINE" | "NO_TERMINAL" | "NO_ACTIVE_CASH" | "CHECKING" | "OK";
 type Role = "ADMIN" | "MANAGER" | "CASHIER";
 
 type SupervisorCreds = { username: string; password: string };
-
-function parseAmount(value: string): number {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return 0;
-  const normalized = trimmed.replace(",", ".");
-  const n = Number(normalized);
-  return Number.isFinite(n) && n >= 0 ? n : 0;
-}
 
 function getTitle(reason: GateReason): string {
   switch (reason) {
@@ -78,6 +70,26 @@ function canAttemptOpen(params: {
  * - Cashier: solicita credenciales supervisor y hace override (via useOpenCash)
  * - SOLID: helpers puros (title/helper/blocked/canAttemptOpen) + UI composable (SupervisorFields)
  */
+function parseAmountToMinor(value: string): number {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return 0;
+
+  const normalized = trimmed.replace(",", ".");
+  const n = Number(normalized);
+
+  if (!Number.isFinite(n) || n < 0) return 0;
+
+  return Math.round(n * 100);
+}
+
+function parseAmount(value: string): number {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return 0;
+  const normalized = trimmed.replace(",", ".");
+  const n = Number(normalized);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
 export function CashOpenGateModal(props: {
   open: boolean;
   reason: GateReason;
@@ -106,21 +118,23 @@ export function CashOpenGateModal(props: {
   useEffect(() => void (cupRef.current = cup), [cup]);
   useEffect(() => void (usdRef.current = usd), [usd]);
 
-  const payload = useMemo<OpenCashRequestDTO>(() => {
-    return {
-      opening: {
-        CUP: parseAmount(cup),
-        USD: parseAmount(usd),
-      },
-    };
-  }, [cup, usd]);
+ const payload = useMemo<OpenCashRequest>(() => {
+  return {
+    opening: {
+      CUP: parseAmountToMinor(cup),
+      USD: parseAmountToMinor(usd),
+      EUR: 0,
+    },
+  };
+}, [cup, usd]);
 
   const blocked = isBlocked(props.reason);
   const title = getTitle(props.reason);
   const helper = getHelper({ reason: props.reason, role: props.role });
 
-  const supervisor: SupervisorCreds | undefined =
-    props.role === "CASHIER" ? { username: supUser.trim(), password: supPass } : undefined;
+  const supervisor = useMemo<SupervisorCreds | undefined>(() => {
+    return props.role === "CASHIER" ? { username: supUser.trim(), password: supPass } : undefined;
+  }, [props.role, supUser, supPass]);
 
   const canOpenNow = canAttemptOpen({
     open: props.open,

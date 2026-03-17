@@ -15,6 +15,7 @@ export function CashCountCloseSummary(props: {
   cup: string;
   usd: string;
   report: CashCountReportDTO | null;
+  forceCloseRequired?: boolean;
 }): JSX.Element {
   return (
     <div className="h-full w-full bg-muted/10 p-6">
@@ -23,6 +24,12 @@ export function CashCountCloseSummary(props: {
       <Card className="mt-3 rounded-2xl p-4">
         <div className="text-xs text-muted-foreground">Acción</div>
         <div className="text-sm font-semibold">{props.mode === "COUNT" ? "COUNT" : "Z CLOSE"}</div>
+
+        {props.forceCloseRequired ? (
+          <div className="mt-3 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs text-red-700">
+            Operación bloqueada hasta completar el cierre.
+          </div>
+        ) : null}
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div>

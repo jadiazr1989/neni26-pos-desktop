@@ -5,8 +5,11 @@ contextBridge.exposeInMainWorld("pos", {
 
   storeGet: (key, fallback) => ipcRenderer.invoke("pos:store:get", key, fallback),
   storeSet: (key, value) => ipcRenderer.invoke("pos:store:set", key, value),
-  storeRemove: (key) => ipcRenderer.invoke("pos:store:remove", key), // ✅
+  storeRemove: (key) => ipcRenderer.invoke("pos:store:remove", key),
 
   terminalGet: () => ipcRenderer.invoke("pos:terminal:get"),
   terminalSet: (id) => ipcRenderer.invoke("pos:terminal:set", id),
+
+  // ✅ NUEVO: minimizar ventana (Windows frame:false)
+  windowMinimize: () => ipcRenderer.invoke("pos:window:minimize"),
 });

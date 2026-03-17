@@ -1,9 +1,7 @@
-// src/modules/admin/dashboard/ui/KpiCard.tsx
 "use client";
 
 import * as React from "react";
 import type { LucideIcon } from "lucide-react";
-
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -24,32 +22,32 @@ function toneStyles(tone: KpiTone | undefined): ToneStyles {
         card: "border-emerald-600/15 bg-emerald-500/5",
         ring: "ring-1 ring-emerald-500/20",
         iconWrap: "border-emerald-600/20 bg-emerald-500/10",
-        icon: "text-emerald-700 dark:text-emerald-300",
-        badge: "border-emerald-600/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+        icon: "text-emerald-700 dark:text-emerald-500",
+        badge: "border-emerald-600/20 bg-emerald-300/10 text-emerald-700 dark:text-emerald-500",
       };
     case "warning":
       return {
         card: "border-amber-600/15 bg-amber-500/5",
         ring: "ring-1 ring-amber-500/20",
         iconWrap: "border-amber-600/20 bg-amber-500/10",
-        icon: "text-amber-700 dark:text-amber-300",
-        badge: "border-amber-600/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+        icon: "text-amber-700 dark:text-amber-500",
+        badge: "border-amber-600/20 bg-amber-300/10 text-amber-700 dark:text-amber-500",
       };
     case "danger":
       return {
         card: "border-rose-600/15 bg-rose-500/5",
         ring: "ring-1 ring-rose-500/18",
         iconWrap: "border-rose-600/20 bg-rose-500/10",
-        icon: "text-rose-700 dark:text-rose-300",
-        badge: "border-rose-600/20 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+        icon: "text-rose-700 dark:text-rose-500",
+        badge: "border-rose-600/20 bg-rose-300/10 text-rose-700 dark:text-rose-500",
       };
     case "info":
       return {
         card: "border-sky-600/15 bg-sky-500/5",
         ring: "ring-1 ring-sky-500/18",
         iconWrap: "border-sky-600/20 bg-sky-500/10",
-        icon: "text-sky-700 dark:text-sky-300",
-        badge: "border-sky-600/20 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+        icon: "text-sky-700 dark:text-sky-500",
+        badge: "border-sky-600/20 bg-sky-300/10 text-sky-700 dark:text-sky-500",
       };
     case "neutral":
       return {
@@ -59,7 +57,6 @@ function toneStyles(tone: KpiTone | undefined): ToneStyles {
         icon: "text-muted-foreground",
         badge: "border-border bg-muted/40 text-muted-foreground",
       };
-    case "default":
     default:
       return {
         card: "border-border/60 bg-background",
@@ -71,103 +68,101 @@ function toneStyles(tone: KpiTone | undefined): ToneStyles {
   }
 }
 
-function Chip(props: { tone?: KpiTone; children: React.ReactNode; title?: string }) {
-  const t = toneStyles(props.tone);
-  return (
-    <span
-      title={props.title}
-      className={cn(
-        "shrink-0 rounded-full border px-2 py-0.5 text-[11px] tabular-nums",
-        "bg-muted/30 text-muted-foreground",
-        t.badge
-      )}
-    >
-      {props.children}
-    </span>
-  );
-}
-
-/** ✅ Value stable: single line + ellipsis + responsive font */
-function KpiValue(props: { value: string }) {
-  return (
-    <div
-      className={cn(
-        "tabular-nums font-semibold tracking-tight leading-none",
-        "max-w-full truncate",
-        "text-[1.6rem] sm:text-[1.75rem] xl:text-[1.9rem]"
-      )}
-      title={props.value}
-    >
-      {props.value}
-    </div>
-  );
+function splitMoneyLabel(v: string): { amount: string; currency: string | null } {
+  const s = String(v ?? "").trim();
+  const m = /^(.+?)\s+([A-Z]{3})$/.exec(s);
+  if (!m) return { amount: s, currency: null };
+  return { amount: m[1], currency: m[2] };
 }
 
 export function KpiCard(props: {
   title: string;
-  value: string;
-  hint: string;
-
+  value: string;        // ej: "710.00 CUP"
+  hint?: string;
   tone?: KpiTone;
   icon?: LucideIcon;
-
-  /** left small chip near title */
-  badge?: string;
-
-  /** right chip (NOT next to the big value) */
-  rightMeta?: string;
-
-  clampHint?: boolean;
+  badge?: string;        // ej: "Margin 12.7%"
+  rightBadge?: string;   // extra (ej: "Cash share 100%")
 }) {
   const t = toneStyles(props.tone);
   const Icon = props.icon;
 
+  const { amount, currency } = React.useMemo(() => splitMoneyLabel(props.value), [props.value]);
+
   return (
-    <Card className={cn("rounded-2xl overflow-hidden", t.ring, t.card)}>
+    <Card className={cn("rounded-2xl min-w-0", t.ring, t.card)}>
       <CardHeader className="pb-2">
-        {/* Top row: title + chips + icon */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               <div className="truncate text-xs font-medium tracking-wide text-muted-foreground">
                 {props.title}
+              </div>             
+            </div>
+
+            {/* ✅ value row: clamp + trunc */}
+            <div className="mt-1 flex items-baseline gap-2 min-w-0">
+              <div
+                className={cn(
+                  "min-w-0 truncate leading-none font-semibold tabular-nums",
+                  "text-[26px] sm:text-[30px]"
+                )}
+                title={props.value}
+              >
+                {amount || "—"}
               </div>
 
-              {props.badge ? <Chip tone={props.tone}>{props.badge}</Chip> : null}
-            </div>
-
-            {/* Value row: BIG value alone */}
-            <div className="mt-2">
-              <KpiValue value={props.value} />
+              {currency && (
+                <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", t.badge)}>
+                  {currency}
+                </span>
+              )}
             </div>
           </div>
 
-          <div className="flex items-start gap-2 shrink-0">
-            {props.rightMeta ? (
-              <Chip tone={props.tone} title={props.rightMeta}>
-                {props.rightMeta}
-              </Chip>
-            ) : null}
-
-            {Icon ? (
-              <span className={cn("grid size-10 place-items-center rounded-2xl border", t.iconWrap)}>
-                <Icon className={cn("size-4", t.icon)} />
-              </span>
-            ) : null}
-          </div>
+          {Icon ? (
+            <span className={cn("grid size-10 place-items-center rounded-2xl border shrink-0", t.iconWrap)}>
+              <Icon className={cn("size-4", t.icon)} />
+            </span>
+          ) : null}
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
-        <div
-          className={cn(
-            "text-xs text-muted-foreground",
-            props.clampHint ? "line-clamp-2" : "truncate"
-          )}
-          title={props.hint}
-        >
-          {props.hint}
-        </div>
+      <CardContent className="pt-0 flex flex-col gap-3">
+        {/* Hint */}
+        {props.hint ? (
+          <div className="text-xs text-muted-foreground leading-snug line-clamp-2">
+            {props.hint}
+          </div>
+        ) : (
+          <div className="h-[32px]" />
+        )}
+
+        {/* Footer badges */}
+        {(props.badge || props.rightBadge) && (
+          <div className="flex items-center justify-between gap-2">
+            {/* Left badge */}
+            {props.badge ? (
+              <span
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-[11px]",
+                  t.badge
+                )}
+              >
+                {props.badge}
+              </span>
+            ) : (
+              <span />
+            )}
+
+            {/* Right badge */}
+            {props.rightBadge ? (
+              <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
+                {props.rightBadge}
+              </span>
+            ) : null}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

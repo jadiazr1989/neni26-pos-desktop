@@ -5,13 +5,14 @@ import { ButtonSpinner } from "@/components/ui/button-spinner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calculator, Lock, X } from "lucide-react";
+import { AlertTriangle, Calculator, Lock, X } from "lucide-react";
 import * as React from "react";
 
 import type { CashMode } from "@/lib/modules/cash/cash.dto";
 
 export function CashCountCloseForm(props: {
   mode: CashMode;
+  forceCloseRequired?: boolean;
   loading: boolean;
   error: string | null;
 
@@ -24,6 +25,7 @@ export function CashCountCloseForm(props: {
   onCancel: () => void;
 }): React.JSX.Element {
   const isClose = props.mode === "CLOSE";
+  const forceCloseRequired = props.forceCloseRequired ?? false;
 
   return (
     <Card className="rounded-2xl p-5">
@@ -33,21 +35,36 @@ export function CashCountCloseForm(props: {
             {isClose ? "Cierre de caja (Z)" : "Arqueo de caja (COUNT)"}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
-            {isClose ? "Ingresa lo contado y confirma. Esto cierra la sesión." : "Ingresa lo contado. Esto NO cierra la caja."}
+            {isClose
+              ? "Ingresa lo contado y confirma. Esto cierra la sesión."
+              : "Ingresa lo contado. Esto NO cierra la caja."}
           </div>
         </div>
 
-        <Button
-          variant="ghost"
-          className="h-9 w-9 p-0 rounded-xl"
-          type="button"
-          onClick={props.onCancel}
-          disabled={props.loading}
-          aria-label="Cerrar"
-        >
-          <X className="size-4" />
-        </Button>
+        {!forceCloseRequired ? (
+          <Button
+            variant="ghost"
+            className="h-9 w-9 p-0 rounded-xl"
+            type="button"
+            onClick={props.onCancel}
+            disabled={props.loading}
+            aria-label="Cerrar"
+          >
+            <X className="size-4" />
+          </Button>
+        ) : null}
       </div>
+
+      {forceCloseRequired ? (
+        <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <div>
+              La caja quedó bloqueada para operación normal. Debes completar el cierre para continuar.
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
@@ -82,9 +99,11 @@ export function CashCountCloseForm(props: {
       )}
 
       <div className="mt-5 flex items-center justify-end gap-2">
-        <Button variant="secondary" type="button" onClick={props.onCancel} disabled={props.loading}>
-          Volver
-        </Button>
+        {!forceCloseRequired ? (
+          <Button variant="secondary" type="button" onClick={props.onCancel} disabled={props.loading}>
+            Volver
+          </Button>
+        ) : null}
 
         <ButtonSpinner
           type="button"

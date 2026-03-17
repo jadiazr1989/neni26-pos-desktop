@@ -141,8 +141,10 @@ export function AdminReportsOverviewPanel(props: {
 
     const trend = props.dailyRows.map((r) => ({
       date: r.day,
-      tickets: r.ticketsCount,
-      netBaseMinor: moneyStrToSafeInt(r.netBaseMinor),
+      bucket: "day" as const,
+      tickets: Number(r.ticketsCount ?? 0),
+      netBaseMinor: moneyStrToSafeInt(String(r.netBaseMinor ?? "0")),
+      refundsBaseMinor: moneyStrToSafeInt(String(r.refundsBaseMinor ?? "0")),
     }));
 
     return {
@@ -154,21 +156,19 @@ export function AdminReportsOverviewPanel(props: {
 
   return (
     <div className="space-y-4">
-      {/* ✅ 5 KPI cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <KpiCard title="Ventas brutas" value={vm?.kpis.grossLabel ?? "—"} hint="" tone="success" />
         <KpiCard title="Devoluciones" value={vm?.kpis.refundsLabel ?? "—"} hint="" tone="danger" />
-        <KpiCard title="Ventas netas" value={vm?.kpis.netLabel ?? "—"} hint="Gross - Returns" tone="default" />
+        <KpiCard title="Ventas netas" value={vm?.kpis.netLabel ?? "—"} hint="Brutas - devoluciones" tone="default" />
         <KpiCard title="Tickets" value={vm?.kpis.ticketsLabel ?? "—"} hint="" tone="warning" />
-        <KpiCard title="Ticket promedio" value={vm?.kpis.avgTicketLabel ?? "—"} hint="Net / Tickets" tone="info" />
+        <KpiCard title="Ticket promedio" value={vm?.kpis.avgTicketLabel ?? "—"} hint="Netas / tickets" tone="info" />
       </div>
 
-      {/* ✅ Operativo row: Mix + Trend */}
       <div className="grid gap-4 lg:grid-cols-3">
         <MixChartCard rows={vm?.mixRows ?? []} />
 
         <Card className="lg:col-span-2">
-          <CardContent className="pt-">
+          <CardContent className="pt-6">
             {!vm ? (
               <EmptyBlock loading={props.loading} label="Cargando resumen..." />
             ) : vm.trend.length === 0 ? (
@@ -178,7 +178,6 @@ export function AdminReportsOverviewPanel(props: {
                 data={vm.trend}
                 title="Tendencia diaria"
                 subtitle="Pasa el mouse para ver tickets"
-                showSummaryBadges
                 moneyLabel={moneyLabel}
               />
             )}

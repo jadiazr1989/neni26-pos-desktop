@@ -12,7 +12,7 @@ import type {
 
 function toAdminQuery(params: WarehouseListQuery): string {
   const qs = new URLSearchParams();
-  qs.set("storeId", params.storeId);
+  if (params.storeId) qs.set("storeId", params.storeId);
   if (params.search !== undefined) qs.set("search", params.search ?? "");
   if (typeof params.isActive === "boolean") qs.set("isActive", params.isActive ? "true" : "false");
   if (typeof params.limit === "number") qs.set("limit", String(params.limit));
